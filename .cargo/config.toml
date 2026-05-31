@@ -1,0 +1,10 @@
+[unstable]
+bindeps = true
+
+[target.x86_64-unknown-none]
+rustflags = ["-C", "panic=abort"]
+
+[alias]
+build-kernel = "build -p kernel --target x86_64-unknown-none"
+qemu-bios = "run -- bios"
+qemu-uefi = "run -- uefi"
