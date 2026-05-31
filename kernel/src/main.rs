@@ -81,7 +81,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     interrupts::handler::init();
     writeln!(
         logger,
-        "[interrupts] PIC remapped, PIT ~100 Hz, timer IRQ enabled"
+        "[interrupts] timer + keyboard IRQ enabled"
     )
     .ok();
 
@@ -100,7 +100,12 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         writeln!(logger, "No framebuffer").ok();
     }
 
-    loop {}
+    loop {
+        while let Some(scancode) = interrupts::keyboard::pop_scancode() {
+            writeln!(logger, "[key] scancode={scancode:#04x}").ok();
+        }
+        x86_64::instructions::hlt();
+    }
 }
 
 /// White block in the top-left — visible proof that the framebuffer works.

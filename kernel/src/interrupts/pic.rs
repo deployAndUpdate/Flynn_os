@@ -15,6 +15,7 @@ lazy_static! {
 #[repr(u8)]
 pub enum InterruptIndex {
     Timer = PIC_1_OFFSET,
+    Keyboard = PIC_1_OFFSET + 1,
 }
 
 pub fn init_pic() {
@@ -24,9 +25,9 @@ pub fn init_pic() {
     }
 }
 
-pub fn unmask_timer() {
+pub fn unmask_irqs() {
     unsafe {
-        // Unmask IRQ0 (timer) only; keep all other hardware IRQs disabled.
-        PICS.lock().write_masks(0xFE, 0xFF);
+        // Unmask IRQ0 (timer) and IRQ1 (keyboard).
+        PICS.lock().write_masks(0xFC, 0xFF);
     }
 }
