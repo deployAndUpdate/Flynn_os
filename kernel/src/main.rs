@@ -1,17 +1,24 @@
 #![no_std]
 #![no_main]
 
+extern crate alloc;
+
 mod driver;
 mod logger;
 mod memory;
 
+use alloc::vec::Vec;
 use bootloader_api::config::Mapping;
 use bootloader_api::info::{FrameBuffer, FrameBufferInfo, PixelFormat};
 use bootloader_api::{BootInfo, BootloaderConfig, entry_point};
 use core::fmt::Write;
 use core::panic::PanicInfo;
 use logger::Logger;
+use x86_64::structures::paging::FrameAllocator;
 use x86_64::VirtAddr;
+
+const HEAP_START: usize = 0x4444_4444_0000;
+const HEAP_SIZE: usize = 1024 * 1024;
 
 pub static BOOTLOADER_CONFIG: BootloaderConfig = {
     let mut config = BootloaderConfig::new_default();
@@ -28,14 +35,13 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     writeln!(logger, "[boot] memory map received").ok();
     memory::memory_map::print_memory_map(&boot_info.memory_regions);
 
-    let mut allocator = memory::frame_allocator::init_frame_allocator(boot_info);
-    match allocator.allocate_frame() {
+    let mut frame_allocator = memory::frame_allocator::init_frame_allocator(boot_info);
+    match frame_allocator.allocate_frame() {
         Some(frame) => {
             writeln!(
                 logger,
-                "[mem] allocated frame #{} at {:#018x}",
-                frame.number,
-                frame.start_address()
+                "[mem] allocated frame at {:#018x}",
+                frame.start_address().as_u64()
             )
             .ok();
         }
@@ -50,12 +56,25 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
             .into_option()
             .expect("bootloader must map physical memory"),
     );
-    let _mapper = unsafe { memory::paging::active_page_table(phys_mem_offset) };
+    let mut mapper = unsafe { memory::paging::active_page_table(phys_mem_offset) };
     writeln!(
         logger,
         "[paging] active page table initialized (phys offset {phys_mem_offset:#x})"
     )
     .ok();
+
+    memory::paging::map_heap(&mut mapper, &mut frame_allocator, HEAP_START, HEAP_SIZE);
+    memory::heap::init_heap(HEAP_START, HEAP_SIZE);
+    writeln!(
+        logger,
+        "[heap] initialized at {HEAP_START:#018x} ({HEAP_SIZE} bytes)"
+    )
+    .ok();
+
+    let mut v = Vec::new();
+    v.push(1);
+    v.push(2);
+    writeln!(logger, "[heap] Vec works (len={}, sum={})", v.len(), v.iter().sum::<i32>()).ok();
 
     writeln!(logger, "Hi from kernel (serial)").ok();
 
