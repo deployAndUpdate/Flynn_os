@@ -1,9 +1,11 @@
 #![no_std]
 #![no_main]
+#![feature(abi_x86_interrupt)]
 
 extern crate alloc;
 
 mod driver;
+mod interrupts;
 mod logger;
 mod memory;
 
@@ -75,6 +77,9 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     v.push(1);
     v.push(2);
     writeln!(logger, "[heap] Vec works (len={}, sum={})", v.len(), v.iter().sum::<i32>()).ok();
+
+    interrupts::handler::init();
+    writeln!(logger, "[interrupts] IDT loaded, CPU interrupts enabled").ok();
 
     writeln!(logger, "Hi from kernel (serial)").ok();
 
