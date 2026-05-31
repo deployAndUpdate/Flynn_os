@@ -1,23 +1,75 @@
 #![no_std]
 #![no_main]
 
+mod driver;
+mod logger;
+mod memory;
+
+use bootloader_api::config::Mapping;
 use bootloader_api::info::{FrameBuffer, FrameBufferInfo, PixelFormat};
-use bootloader_api::{BootInfo, entry_point};
+use bootloader_api::{BootInfo, BootloaderConfig, entry_point};
 use core::fmt::Write;
 use core::panic::PanicInfo;
-use uart_16550::SerialPort;
+use logger::Logger;
+use x86_64::VirtAddr;
 
-entry_point!(kernel_main);
+pub static BOOTLOADER_CONFIG: BootloaderConfig = {
+    let mut config = BootloaderConfig::new_default();
+    config.mappings.physical_memory = Some(Mapping::Dynamic);
+    config
+};
+
+entry_point!(kernel_main, config = &BOOTLOADER_CONFIG);
 
 fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
-    let mut serial = serial();
-    writeln!(serial, "Hi from kernel (serial)").ok();
+    Logger::init();
+
+    let mut logger = Logger;
+    writeln!(logger, "[boot] memory map received").ok();
+    memory::memory_map::print_memory_map(&boot_info.memory_regions);
+
+    let mut allocator = memory::frame_allocator::init_frame_allocator(boot_info);
+    match allocator.allocate_frame() {
+        Some(frame) => {
+            writeln!(
+                logger,
+                "[mem] allocated frame #{} at {:#018x}",
+                frame.number,
+                frame.start_address()
+            )
+            .ok();
+        }
+        None => {
+            writeln!(logger, "[mem] no frames available").ok();
+        }
+    }
+
+    let phys_mem_offset = VirtAddr::new(
+        boot_info
+            .physical_memory_offset
+            .into_option()
+            .expect("bootloader must map physical memory"),
+    );
+    let _mapper = unsafe { memory::paging::active_page_table(phys_mem_offset) };
+    writeln!(
+        logger,
+        "[paging] active page table initialized (phys offset {phys_mem_offset:#x})"
+    )
+    .ok();
+
+    writeln!(logger, "Hi from kernel (serial)").ok();
 
     if let Some(framebuffer) = boot_info.framebuffer.as_mut() {
         draw_hi_marker(framebuffer);
-        writeln!(serial, "Framebuffer: {}x{}", framebuffer.info().width, framebuffer.info().height).ok();
+        writeln!(
+            logger,
+            "Framebuffer: {}x{}",
+            framebuffer.info().width,
+            framebuffer.info().height
+        )
+        .ok();
     } else {
-        writeln!(serial, "No framebuffer").ok();
+        writeln!(logger, "No framebuffer").ok();
     }
 
     loop {}
@@ -56,15 +108,9 @@ fn write_pixel(buffer: &mut [u8], info: &FrameBufferInfo, x: usize, y: usize, r:
     }
 }
 
-fn serial() -> SerialPort {
-    let mut port = unsafe { SerialPort::new(0x3F8) };
-    port.init();
-    port
-}
-
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    let mut serial = serial();
-    let _ = writeln!(serial, "PANIC: {info}");
+    let mut logger = Logger;
+    let _ = writeln!(logger, "PANIC: {info}");
     loop {}
 }
