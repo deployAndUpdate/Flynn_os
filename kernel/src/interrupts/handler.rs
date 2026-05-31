@@ -1,24 +1,37 @@
-use lazy_static::lazy_static;
-use pic8259::ChainedPics;
-use spin::Mutex;
+use x86_64::structures::idt::InterruptStackFrame;
 
+use crate::driver::serial::SerialPort;
 use crate::interrupts::idt;
+use crate::interrupts::pic::{InterruptIndex, PICS};
+use crate::interrupts::pit;
 
-lazy_static! {
-    pub static ref PICS: Mutex<ChainedPics> =
-        Mutex::new(unsafe { ChainedPics::new(32, 40) });
+static mut TICKS: u64 = 0;
+
+pub extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
+    unsafe {
+        TICKS += 1;
+
+        if TICKS % 100 == 0 {
+            SerialPort::write_str("tick\n");
+        }
+
+        PICS.lock()
+            .notify_end_of_interrupt(InterruptIndex::Timer as u8);
+    }
 }
 
 pub fn init() {
+    init_interrupts();
+}
+
+pub fn init_interrupts() {
+    crate::interrupts::pic::init_pic();
+    pit::init_pit();
     idt::init_idt();
-
-    // Remap PIC vectors to 32..47, then mask all IRQ lines.
-    // Without masking, the PIT timer fires immediately after `sti` and jumps
-    // to an unhandled IDT entry → double/triple fault → reboot loop.
-    unsafe {
-        PICS.lock().initialize();
-        PICS.lock().disable();
-    }
-
+    crate::interrupts::pic::unmask_timer();
     x86_64::instructions::interrupts::enable();
+}
+
+pub fn ticks() -> u64 {
+    unsafe { TICKS }
 }

@@ -79,7 +79,11 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     writeln!(logger, "[heap] Vec works (len={}, sum={})", v.len(), v.iter().sum::<i32>()).ok();
 
     interrupts::handler::init();
-    writeln!(logger, "[interrupts] IDT loaded, CPU interrupts enabled").ok();
+    writeln!(
+        logger,
+        "[interrupts] PIC remapped, PIT ~100 Hz, timer IRQ enabled"
+    )
+    .ok();
 
     writeln!(logger, "Hi from kernel (serial)").ok();
 
