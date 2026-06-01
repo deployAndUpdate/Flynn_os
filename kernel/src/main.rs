@@ -5,6 +5,7 @@
 extern crate alloc;
 
 mod driver;
+mod input;
 mod interrupts;
 mod logger;
 mod memory;
@@ -86,7 +87,6 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     .ok();
 
     writeln!(logger, "Hi from kernel (serial)").ok();
-
     if let Some(framebuffer) = boot_info.framebuffer.as_mut() {
         draw_hi_marker(framebuffer);
         writeln!(
@@ -101,9 +101,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     }
 
     loop {
-        while let Some(scancode) = interrupts::keyboard::pop_scancode() {
-            writeln!(logger, "[key] scancode={scancode:#04x}").ok();
-        }
+        input::terminal::process_keyboard_buffer();
         x86_64::instructions::hlt();
     }
 }

@@ -27,6 +27,7 @@ pub fn init() {
 pub fn init_interrupts() {
     crate::interrupts::pic::init_pic();
     pit::init_pit();
+    crate::interrupts::keyboard::init_keyboard();
     idt::init_idt();
     crate::interrupts::pic::unmask_irqs();
     x86_64::instructions::interrupts::enable();
