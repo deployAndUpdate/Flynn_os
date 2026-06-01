@@ -9,6 +9,7 @@ mod input;
 mod interrupts;
 mod logger;
 mod memory;
+mod shell;
 
 use alloc::vec::Vec;
 use bootloader_api::config::Mapping;
@@ -86,6 +87,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     )
     .ok();
 
+    crate::driver::serial::SerialPort::write_str("> ");
     writeln!(logger, "Hi from kernel (serial)").ok();
     if let Some(framebuffer) = boot_info.framebuffer.as_mut() {
         draw_hi_marker(framebuffer);

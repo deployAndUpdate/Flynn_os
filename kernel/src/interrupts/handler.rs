@@ -11,9 +11,9 @@ pub extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptSta
     unsafe {
         TICKS += 1;
 
-        if TICKS % 100 == 0 {
-            SerialPort::write_str("tick\n");
-        }
+        // if TICKS % 100 == 0 {
+        //     SerialPort::write_str("tick\n");
+        // }
 
         PICS.lock()
             .notify_end_of_interrupt(InterruptIndex::Timer as u8);

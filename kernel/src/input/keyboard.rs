@@ -28,7 +28,6 @@ pub fn scancode_to_ascii(scancode: u8) -> Option<char> {
         0x2C => Some('z'),
 
         0x39 => Some(' '),
-        0x1C => Some('\n'),
 
         _ => None,
     }
