@@ -1,16 +1,16 @@
 use crate::driver::serial::SerialPort;
 use crate::input::terminal;
-use crate::task::preempt_if_pending;
+use crate::interrupts::keyboard::has_scancode;
+use crate::task::{block_on_keyboard, preempt_if_pending, sleep};
 
 const WORKER_ITERATIONS: u32 = 5;
 
-/// Busy-loop worker — no voluntary yield; timer IRQ sets preempt flag.
 pub fn worker_a() {
     for i in 0..WORKER_ITERATIONS {
         SerialPort::write_str("A:");
         print_u32(i);
         SerialPort::write_str("\n");
-        busy_spin();
+        sleep(5);
     }
     SerialPort::write_str("A:done\n");
 }
@@ -20,16 +20,20 @@ pub fn worker_b() {
         SerialPort::write_str("B:");
         print_u32(i);
         SerialPort::write_str("\n");
-        busy_spin();
+        sleep(5);
     }
     SerialPort::write_str("B:done\n");
 }
 
+/// Blocks when no keyboard input — no busy-wait polling.
 pub fn input_loop() {
     loop {
-        terminal::process_keyboard_buffer();
+        if has_scancode() {
+            terminal::process_keyboard_buffer();
+        } else {
+            block_on_keyboard();
+        }
         preempt_if_pending();
-        crate::task::yield_now();
     }
 }
 
@@ -37,13 +41,6 @@ pub fn idle() {
     loop {
         preempt_if_pending();
         x86_64::instructions::hlt();
-    }
-}
-
-fn busy_spin() {
-    for _ in 0..50_000 {
-        preempt_if_pending();
-        core::hint::spin_loop();
     }
 }
 

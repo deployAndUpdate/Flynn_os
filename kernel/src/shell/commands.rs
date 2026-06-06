@@ -6,6 +6,7 @@ pub fn help() {
         "mem to print the memory map\n\
          ticks to print the number of ticks\n\
          ps to list tasks\n\
+         sleep N to block for N timer ticks\n\
          clear to clear the screen\n\
          help to print this help message\n"
     );
@@ -28,6 +29,14 @@ pub fn ticks() {
     SerialPort::write_str("ticks: ");
     print_u64(handler::ticks());
     SerialPort::write_str("\n");
+}
+
+pub fn sleep_ticks(ticks: u32) {
+    SerialPort::write_str("sleeping ");
+    print_u64(ticks as u64);
+    SerialPort::write_str(" ticks...\n");
+    crate::task::sleep(ticks);
+    SerialPort::write_str("woke up\n");
 }
 
 pub fn clear() {

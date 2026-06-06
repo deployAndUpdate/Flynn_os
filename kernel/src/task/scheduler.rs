@@ -5,6 +5,8 @@ use core::fmt::Write;
 use lazy_static::lazy_static;
 
 use crate::driver::serial::SerialPort;
+use crate::interrupts::handler;
+use crate::interrupts::keyboard;
 use crate::logger::Logger;
 use crate::task::context::{allocate_stack, init_context, TaskContext};
 use crate::task::preempt;
@@ -25,6 +27,7 @@ const AGING_TICKS: u32 = 15;
 pub enum TaskState {
     Ready,
     Running,
+    Blocked,
     Finished,
 }
 
@@ -33,6 +36,7 @@ struct Task {
     state: TaskState,
     priority: u8,
     wait_ticks: u32,
+    wake_at: Option<u64>,
     context: TaskContext,
     stack: Vec<u8>,
     entry: fn(),
@@ -42,6 +46,7 @@ struct Scheduler {
     tasks: Vec<Task>,
     ready: Vec<VecDeque<usize>>,
     current: Option<usize>,
+    keyboard_waiter: Option<usize>,
     next_id: TaskId,
     bootstrap: TaskContext,
     started: bool,
@@ -60,6 +65,7 @@ impl Scheduler {
                 .map(|_| VecDeque::new())
                 .collect(),
             current: None,
+            keyboard_waiter: None,
             next_id: 1,
             bootstrap: TaskContext { rsp: 0 },
             started: false,
@@ -74,13 +80,44 @@ impl Scheduler {
     fn enqueue_ready(&mut self, idx: usize) {
         let priority = Self::clamp_priority(self.tasks[idx].priority);
         self.tasks[idx].wait_ticks = 0;
+        self.tasks[idx].state = TaskState::Ready;
         self.ready[priority as usize].push_back(idx);
+    }
+
+    fn wake_task(&mut self, idx: usize) {
+        if self.tasks[idx].state != TaskState::Blocked {
+            return;
+        }
+        self.tasks[idx].wake_at = None;
+        if self.keyboard_waiter == Some(idx) {
+            self.keyboard_waiter = None;
+        }
+        self.enqueue_ready(idx);
+    }
+
+    fn wake_sleepers(&mut self, now: u64) {
+        for idx in 0..self.tasks.len() {
+            if self.tasks[idx].state != TaskState::Blocked {
+                continue;
+            }
+            if let Some(wake_at) = self.tasks[idx].wake_at {
+                if now >= wake_at {
+                    self.wake_task(idx);
+                }
+            }
+        }
+    }
+
+    fn wake_keyboard_waiter(&mut self) {
+        if let Some(idx) = self.keyboard_waiter {
+            self.wake_task(idx);
+        }
     }
 
     fn pop_highest_ready(&mut self) -> Option<usize> {
         for level in (0..MAX_PRIORITY).rev() {
             while let Some(idx) = self.ready[level].pop_front() {
-                if self.tasks[idx].state != TaskState::Finished {
+                if self.tasks[idx].state == TaskState::Ready {
                     return Some(idx);
                 }
             }
@@ -88,11 +125,10 @@ impl Scheduler {
         None
     }
 
-    /// First dispatch after boot: start background tasks before interactive (prio >= 1 ascending).
     fn pop_bootstrap_task(&mut self) -> Option<usize> {
         for level in 1..MAX_PRIORITY {
             while let Some(idx) = self.ready[level].pop_front() {
-                if self.tasks[idx].state != TaskState::Finished {
+                if self.tasks[idx].state == TaskState::Ready {
                     return Some(idx);
                 }
             }
@@ -100,7 +136,6 @@ impl Scheduler {
         self.pop_highest_ready()
     }
 
-    /// Boost long-waiting tasks one priority level (anti-starvation).
     fn age_ready_queues(&mut self) {
         for level in 0..MAX_PRIORITY - 1 {
             let mut i = 0;
@@ -134,6 +169,7 @@ impl Scheduler {
             state: TaskState::Ready,
             priority,
             wait_ticks: 0,
+            wake_at: None,
             context,
             stack,
             entry,
@@ -145,11 +181,30 @@ impl Scheduler {
         id
     }
 
-    fn runnable_count(&self) -> usize {
+    fn active_count(&self) -> usize {
         self.tasks
             .iter()
-            .filter(|t| t.state != TaskState::Finished)
+            .filter(|t| matches!(t.state, TaskState::Ready | TaskState::Running))
             .count()
+    }
+
+    fn block_current_sleep(&mut self, wake_at: u64) {
+        let idx = self.current.expect("sleep without current task");
+        self.tasks[idx].state = TaskState::Blocked;
+        self.tasks[idx].wake_at = Some(wake_at);
+        self.schedule_next();
+    }
+
+    fn block_current_keyboard(&mut self) {
+        if keyboard::has_scancode() {
+            return;
+        }
+
+        let idx = self.current.expect("block_on_keyboard without current task");
+        self.keyboard_waiter = Some(idx);
+        self.tasks[idx].state = TaskState::Blocked;
+        self.tasks[idx].wake_at = None;
+        self.schedule_next();
     }
 
     fn yield_current(&mut self) {
@@ -163,12 +218,11 @@ impl Scheduler {
             return;
         }
 
-        if self.runnable_count() <= 1 {
+        if self.active_count() <= 1 {
             self.quantum = QUANTUM_TICKS;
             return;
         }
 
-        self.tasks[current_idx].state = TaskState::Ready;
         self.enqueue_ready(current_idx);
         self.quantum = QUANTUM_TICKS;
         self.schedule_next();
@@ -178,6 +232,9 @@ impl Scheduler {
         if let Some(idx) = self.current {
             let id = self.tasks[idx].id;
             self.tasks[idx].state = TaskState::Finished;
+            if self.keyboard_waiter == Some(idx) {
+                self.keyboard_waiter = None;
+            }
             let mut logger = Logger;
             let _ = writeln!(logger, "[task] finished id={id}");
         }
@@ -237,7 +294,9 @@ impl Scheduler {
         }
     }
 
-    fn on_timer_tick(&mut self) {
+    fn on_timer_tick(&mut self, now: u64) {
+        self.wake_sleepers(now);
+
         if self.started && !preempt::is_disabled() {
             self.age_ready_queues();
         }
@@ -245,7 +304,7 @@ impl Scheduler {
         if !self.started || preempt::is_disabled() {
             return;
         }
-        if self.runnable_count() <= 1 {
+        if self.active_count() <= 1 {
             return;
         }
 
@@ -260,9 +319,8 @@ impl Scheduler {
         let mut logger = Logger;
         let _ = writeln!(
             logger,
-            "[task] starting priority scheduler ({} tasks, {} levels, quantum={} ticks)",
+            "[task] starting block/wake scheduler ({} tasks, quantum={} ticks)",
             self.tasks.len(),
-            MAX_PRIORITY,
             QUANTUM_TICKS
         );
         self.schedule_next();
@@ -277,7 +335,7 @@ impl Scheduler {
     }
 
     fn print_ps(&self) {
-        SerialPort::write_str("ID  PRIO  STATE     WAIT\n");
+        SerialPort::write_str("ID  PRIO  STATE     WAIT  WAKE_AT\n");
         for task in &self.tasks {
             SerialPort::write_str(" ");
             print_u64(task.id);
@@ -287,10 +345,16 @@ impl Scheduler {
             match task.state {
                 TaskState::Ready => SerialPort::write_str("Ready   "),
                 TaskState::Running => SerialPort::write_str("Running "),
+                TaskState::Blocked => SerialPort::write_str("Blocked "),
                 TaskState::Finished => SerialPort::write_str("Finished"),
             }
             SerialPort::write_str("  ");
             print_u64(task.wait_ticks as u64);
+            SerialPort::write_str("   ");
+            match task.wake_at {
+                Some(t) => print_u64(t),
+                None => SerialPort::write_str("-"),
+            }
             SerialPort::write_str("\n");
         }
     }
@@ -334,8 +398,23 @@ pub fn start() -> ! {
     scheduler().start();
 }
 
+pub fn sleep(ticks: u32) {
+    let now = handler::ticks();
+    let wake_at = now + ticks as u64;
+    scheduler().block_current_sleep(wake_at);
+}
+
+pub fn block_on_keyboard() {
+    scheduler().block_current_keyboard();
+}
+
+pub fn notify_keyboard_input() {
+    scheduler().wake_keyboard_waiter();
+}
+
 pub fn on_timer_tick() {
-    scheduler().on_timer_tick();
+    let now = handler::ticks();
+    scheduler().on_timer_tick(now);
 }
 
 pub fn preempt_if_pending() {
