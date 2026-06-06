@@ -4,8 +4,8 @@ use super::context::TaskContext;
 
 global_asm!(
     r#"
-    .global switch_context
-    switch_context:
+    .global switch_task
+    switch_task:
         mov [rdi], rsp
         mov rsp, [rsi]
         ret
@@ -13,5 +13,5 @@ global_asm!(
 );
 
 extern "C" {
-    pub fn switch_context(current: *mut TaskContext, next: *const TaskContext);
+    pub fn switch_task(current: *mut TaskContext, next: *const TaskContext);
 }

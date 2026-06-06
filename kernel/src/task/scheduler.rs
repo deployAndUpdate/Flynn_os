@@ -6,9 +6,13 @@ use lazy_static::lazy_static;
 
 use crate::logger::Logger;
 use crate::task::context::{allocate_stack, init_context, TaskContext};
-use crate::task::switch::switch_context;
+use crate::task::preempt;
+use crate::task::switch::switch_task;
 
 pub type TaskId = u64;
+
+/// Timer ticks per task time slice (~20 ms at PIT ~100 Hz).
+pub const QUANTUM_TICKS: u32 = 2;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TaskState {
@@ -33,6 +37,7 @@ struct Scheduler {
     next_id: TaskId,
     bootstrap: TaskContext,
     started: bool,
+    quantum: u32,
 }
 
 struct SchedulerCell(UnsafeCell<Scheduler>);
@@ -48,6 +53,7 @@ impl Scheduler {
             next_id: 1,
             bootstrap: TaskContext { rsp: 0 },
             started: false,
+            quantum: QUANTUM_TICKS,
         }
     }
 
@@ -74,6 +80,13 @@ impl Scheduler {
         id
     }
 
+    fn runnable_count(&self) -> usize {
+        self.tasks
+            .iter()
+            .filter(|t| t.state != TaskState::Finished)
+            .count()
+    }
+
     fn yield_current(&mut self) {
         let current_idx = match self.current {
             Some(idx) => idx,
@@ -87,6 +100,7 @@ impl Scheduler {
 
         self.tasks[current_idx].state = TaskState::Ready;
         self.ready.push_back(current_idx);
+        self.quantum = QUANTUM_TICKS;
         self.schedule_next();
     }
 
@@ -112,20 +126,20 @@ impl Scheduler {
 
             let next_ctx = self.tasks[next_idx].context;
 
-            if let Some(prev_idx) = prev_idx {
+            if let Some(prev) = prev_idx {
                 if !self.started {
                     panic!("schedule_next: prev task exists before scheduler started");
                 }
-                let prev_ctx = &mut self.tasks[prev_idx].context;
+                let prev_ctx = &mut self.tasks[prev].context;
                 unsafe {
-                    switch_context(prev_ctx, &next_ctx);
+                    switch_task(prev_ctx, &next_ctx);
                 }
                 return;
             }
 
             self.started = true;
             unsafe {
-                switch_context(&mut self.bootstrap, &next_ctx);
+                switch_task(&mut self.bootstrap, &next_ctx);
             }
             return;
         }
@@ -137,12 +151,28 @@ impl Scheduler {
         }
     }
 
+    fn on_timer_tick(&mut self) {
+        if !self.started || preempt::is_disabled() {
+            return;
+        }
+        if self.runnable_count() <= 1 {
+            return;
+        }
+
+        self.quantum = self.quantum.saturating_sub(1);
+        if self.quantum == 0 {
+            self.quantum = QUANTUM_TICKS;
+            preempt::request();
+        }
+    }
+
     fn start(&mut self) -> ! {
         let mut logger = Logger;
         let _ = writeln!(
             logger,
-            "[task] starting cooperative scheduler ({} tasks)",
-            self.tasks.len()
+            "[task] starting preemptive scheduler ({} tasks, quantum={} ticks)",
+            self.tasks.len(),
+            QUANTUM_TICKS
         );
         self.schedule_next();
         loop {
@@ -174,6 +204,17 @@ pub fn yield_now() {
 
 pub fn start() -> ! {
     scheduler().start();
+}
+
+pub fn on_timer_tick() {
+    scheduler().on_timer_tick();
+}
+
+/// Called at task safe points when timer ISR requested a reschedule.
+pub fn preempt_if_pending() {
+    if preempt::take_pending() && !preempt::is_disabled() {
+        yield_now();
+    }
 }
 
 extern "C" fn task_trampoline() -> ! {

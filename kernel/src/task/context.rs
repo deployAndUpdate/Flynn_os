@@ -1,7 +1,4 @@
-/// Saved CPU context for cooperative context switch (x86_64).
-///
-/// Only RSP is saved — `switch_context` swaps stacks and returns into
-/// the target task via the address pushed at stack init.
+/// Saved CPU context for context switch (x86_64) — voluntary `ret` only.
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct TaskContext {
@@ -16,7 +13,7 @@ pub fn allocate_stack() -> alloc::vec::Vec<u8> {
     stack
 }
 
-/// Prepare a fresh stack so the first `switch_context` ret-jumps into `entry`.
+/// Prepare a fresh stack so the first switch ret-jumps into `entry`.
 pub fn init_context(stack: &mut [u8], entry: extern "C" fn() -> !) -> TaskContext {
     let stack_bottom = stack.as_mut_ptr() as usize;
     let stack_top = stack_bottom + stack.len();

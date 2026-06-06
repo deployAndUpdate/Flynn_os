@@ -1,15 +1,16 @@
 use crate::driver::serial::SerialPort;
 use crate::input::terminal;
-use crate::task::yield_now;
+use crate::task::preempt_if_pending;
 
 const WORKER_ITERATIONS: u32 = 5;
 
+/// Busy-loop worker — no voluntary yield; timer IRQ sets preempt flag.
 pub fn worker_a() {
     for i in 0..WORKER_ITERATIONS {
         SerialPort::write_str("A:");
         print_u32(i);
         SerialPort::write_str("\n");
-        yield_now();
+        busy_spin();
     }
     SerialPort::write_str("A:done\n");
 }
@@ -19,7 +20,7 @@ pub fn worker_b() {
         SerialPort::write_str("B:");
         print_u32(i);
         SerialPort::write_str("\n");
-        yield_now();
+        busy_spin();
     }
     SerialPort::write_str("B:done\n");
 }
@@ -27,7 +28,22 @@ pub fn worker_b() {
 pub fn input_loop() {
     loop {
         terminal::process_keyboard_buffer();
-        yield_now();
+        preempt_if_pending();
+        crate::task::yield_now();
+    }
+}
+
+pub fn idle() {
+    loop {
+        preempt_if_pending();
+        x86_64::instructions::hlt();
+    }
+}
+
+fn busy_spin() {
+    for _ in 0..50_000 {
+        preempt_if_pending();
+        core::hint::spin_loop();
     }
 }
 
