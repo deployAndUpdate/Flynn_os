@@ -1,6 +1,5 @@
+use core::cell::UnsafeCell;
 use heapless::spsc::Queue;
-use lazy_static::lazy_static;
-use spin::Mutex;
 use x86_64::instructions::port::Port;
 use x86_64::structures::idt::InterruptStackFrame;
 
@@ -10,8 +9,22 @@ const PS2_STATUS: u16 = 0x64;
 const PS2_DATA: u16 = 0x60;
 const KEY_BUFFER_SIZE: usize = 64;
 
-lazy_static! {
-    static ref KEY_BUFFER: Mutex<Queue<u8, KEY_BUFFER_SIZE>> = Mutex::new(Queue::new());
+struct KeyQueue(UnsafeCell<Queue<u8, KEY_BUFFER_SIZE>>);
+
+unsafe impl Sync for KeyQueue {}
+
+static KEY_QUEUE: KeyQueue = KeyQueue(UnsafeCell::new(Queue::new()));
+
+/// SAFETY: only the keyboard ISR calls this.
+unsafe fn enqueue_scancode(scancode: u8) {
+    let queue = &mut *KEY_QUEUE.0.get();
+    let _ = queue.enqueue(scancode);
+}
+
+/// SAFETY: only `input_loop` / terminal calls this.
+pub fn pop_scancode() -> Option<u8> {
+    let queue = unsafe { &mut *KEY_QUEUE.0.get() };
+    queue.dequeue()
 }
 
 fn wait_ps2_write() {
@@ -41,16 +54,11 @@ pub extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: Interrupt
             break;
         }
         let scancode = unsafe { data_port.read() };
-        let mut buffer = KEY_BUFFER.lock();
-        let _ = buffer.enqueue(scancode);
+        unsafe { enqueue_scancode(scancode) };
     }
 
     unsafe {
         PICS.lock()
             .notify_end_of_interrupt(InterruptIndex::Keyboard as u8);
     }
-}
-
-pub fn pop_scancode() -> Option<u8> {
-    KEY_BUFFER.lock().dequeue()
 }

@@ -10,6 +10,7 @@ mod interrupts;
 mod logger;
 mod memory;
 mod shell;
+mod task;
 
 use alloc::vec::Vec;
 use bootloader_api::config::Mapping;
@@ -87,8 +88,8 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     )
     .ok();
 
-    crate::driver::serial::SerialPort::write_str("> ");
-    writeln!(logger, "Hi from kernel (serial)").ok();
+    show_banner();
+
     if let Some(framebuffer) = boot_info.framebuffer.as_mut() {
         draw_hi_marker(framebuffer);
         writeln!(
@@ -102,10 +103,42 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         writeln!(logger, "No framebuffer").ok();
     }
 
-    loop {
-        input::terminal::process_keyboard_buffer();
-        x86_64::instructions::hlt();
-    }
+    writeln!(logger, "[task] phase 1: cooperative kernel threads").ok();
+
+    task::spawn(task::demo::worker_a, 1);
+    task::spawn(task::demo::worker_b, 1);
+    task::spawn(task::demo::input_loop, 2);
+
+    crate::driver::serial::SerialPort::write_str("> ");
+    writeln!(logger, "Hi from kernel (serial)").ok();
+
+    task::start();
+}
+
+fn show_banner() {
+    let mut logger = Logger;
+    const BANNER: &str = r"
+                     .-=================-.
+                 .-==#%%%%%%%%%%%%%%%%%%%#==-.
+              .-==#%%%%%%%%%%%%%%%%%%%%%%%%%%%#==-.
+            .-=#%%%%%%%%%%%%%%#***#%%%%%%%%%%%%%%#=-.
+           :=#%%%%%%%%%%%%#*=:.   .:=*#%%%%%%%%%%%%#=:
+         .-*%%%%%%%%%%%#*=.           .=*#%%%%%%%%%%%*-.
+        .=#%%%%%%%%%%#=.                 .=#%%%%%%%%%%#=.
+        :#%%%%%%%%%%#:       FLYNN        :#%%%%%%%%%%#:
+        :#%%%%%%%%%%#:         OS         :#%%%%%%%%%%#:
+        .=#%%%%%%%%%%#=.               .=#%%%%%%%%%%#=.
+         .-*%%%%%%%%%%%#*=.         .=*#%%%%%%%%%%%*-.
+           :=#%%%%%%%%%%%%#*=-...-=*#%%%%%%%%%%%%#=:
+            .-=#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%#=-.
+               .-==#%%%%%%%%%%%%%%%%%%%%%%%#==-.
+                    '-=================-'
+
+             [ GRID LINK ESTABLISHED ]
+             [ KERNEL STATUS : ONLINE ]
+             [ USER SPACE    : ACTIVE ]
+";
+    write!(logger, "{BANNER}").ok();
 }
 
 /// White block in the top-left — visible proof that the framebuffer works.
