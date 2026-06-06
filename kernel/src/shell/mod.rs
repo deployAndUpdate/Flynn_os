@@ -15,6 +15,7 @@ pub fn execute(cmd: &str) {
     match name {
         "help" => commands::help(),
         "ticks" => commands::ticks(),
+        "ps" => commands::ps(),
         "mem" => commands::mem(),
         "clear" => commands::clear(),
         "say" => commands::say(args),

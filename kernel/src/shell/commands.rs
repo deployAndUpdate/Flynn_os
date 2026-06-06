@@ -5,9 +5,14 @@ pub fn help() {
     SerialPort::write_str(
         "mem to print the memory map\n\
          ticks to print the number of ticks\n\
+         ps to list tasks\n\
          clear to clear the screen\n\
          help to print this help message\n"
     );
+}
+
+pub fn ps() {
+    crate::task::print_ps();
 }
 
 pub fn mem() {

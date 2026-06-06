@@ -5,7 +5,7 @@ pub struct TaskContext {
     pub rsp: u64,
 }
 
-const MIN_STACK_SIZE: usize = 4096 * 4;
+const MIN_STACK_SIZE: usize = 4096 * 8;
 
 pub fn allocate_stack() -> alloc::vec::Vec<u8> {
     let mut stack = alloc::vec::Vec::with_capacity(MIN_STACK_SIZE);

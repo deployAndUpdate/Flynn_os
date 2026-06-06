@@ -103,7 +103,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         writeln!(logger, "No framebuffer").ok();
     }
 
-    writeln!(logger, "[task] phase 2: preemptive scheduler").ok();
+    writeln!(logger, "[task] phase 3: priority scheduler + aging").ok();
 
     task::spawn(task::demo::worker_a, 1);
     task::spawn(task::demo::worker_b, 1);
