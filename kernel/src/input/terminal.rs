@@ -1,5 +1,6 @@
 use alloc::string::String;
 use crate::alloc::string::ToString;
+use spin::Mutex;
 
 use crate::driver::serial::SerialPort;
 use crate::input::keyboard::scancode_to_ascii;
@@ -9,18 +10,16 @@ use crate::task::PreemptGuard;
 const SC_BACKSPACE: u8 = 0x0E;
 const SC_ENTER: u8 = 0x1C;
 
-static INPUT_LINE: spin::Mutex<String> = spin::Mutex::new(String::new());
+static INPUT_LINE: Mutex<String> = Mutex::new(String::new());
 
-pub fn push_char(ch: char) {
-    let _guard = PreemptGuard::new();
-    let mut line = INPUT_LINE.lock();
-    line.push(ch);
-    echo_char(ch);
-}
+/// Drain available scancodes. Returns `true` if at least one key was processed.
+///
+/// `PreemptGuard` is **not** held across shell execution — commands may block (`sleep`).
+pub fn process_keyboard_buffer() -> bool {
+    let mut processed = false;
 
-pub fn process_keyboard_buffer() {
-    let _guard = PreemptGuard::new();
     while let Some(scancode) = pop_scancode() {
+        processed = true;
         if scancode & 0x80 != 0 {
             continue;
         }
@@ -29,26 +28,34 @@ pub fn process_keyboard_buffer() {
             SC_ENTER => handle_enter(),
             code => {
                 if let Some(ch) = scancode_to_ascii(code) {
-                    push_char_unlocked(ch);
+                    push_char(ch);
                 }
             }
         }
     }
+
+    processed
 }
 
-fn push_char_unlocked(ch: char) {
-    let mut line = INPUT_LINE.lock();
-    line.push(ch);
+fn push_char(ch: char) {
+    {
+        let _guard = PreemptGuard::new();
+        let mut line = INPUT_LINE.lock();
+        line.push(ch);
+    }
     echo_char(ch);
 }
 
 fn handle_enter() {
-    let mut line = INPUT_LINE.lock();
-    let command = line.trim().to_string();
-    SerialPort::write_str("\n");
-    line.clear();
-    drop(line);
+    let command = {
+        let _guard = PreemptGuard::new();
+        let mut line = INPUT_LINE.lock();
+        let cmd = line.trim().to_string();
+        line.clear();
+        cmd
+    };
 
+    SerialPort::write_str("\n");
     if !command.is_empty() {
         crate::shell::execute(&command);
     }
@@ -56,8 +63,12 @@ fn handle_enter() {
 }
 
 fn handle_backspace() {
-    let mut line = INPUT_LINE.lock();
-    if line.pop().is_some() {
+    let popped = {
+        let _guard = PreemptGuard::new();
+        let mut line = INPUT_LINE.lock();
+        line.pop()
+    };
+    if popped.is_some() {
         SerialPort::write_str("\x08 \x08");
     }
 }

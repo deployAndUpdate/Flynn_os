@@ -15,6 +15,14 @@ pub fn execute(cmd: &str) {
     match name {
         "help" => commands::help(),
         "ticks" => commands::ticks(),
+        "ps" => commands::ps(),
+        "sleep" => {
+            if let Ok(ticks) = args.trim().parse::<u32>() {
+                commands::sleep_ticks(ticks);
+            } else {
+                SerialPort::write_str("usage: sleep <ticks>\n");
+            }
+        }
         "mem" => commands::mem(),
         "clear" => commands::clear(),
         "say" => commands::say(args),

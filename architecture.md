@@ -6,31 +6,26 @@
 
 - Bare-metal ядро: boot, serial, paging, heap (1 MiB), PIC, PIT (~100 Hz), keyboard ISR → SPSC queue
 - Shell + line input
-- **Phase 1 — cooperative kernel threads**
-  - `task/`: `TaskContext`, `switch_task`, `spawn` / `yield_now` / `start`
-  - Fix: `KEY_BUFFER` lock-free SPSC
-- **Phase 2 — preemptive timer**
-  - Timer ISR: EOI → `on_timer_tick()` → `preempt::request()` при quantum=0
-  - Quantum = 2 ticks (~20 ms), `PreemptGuard` / `preempt_disable`
-  - `preempt_if_pending()` в safe points (busy_spin, idle, input)
-  - Idle task (`hlt`, prio 0)
-  - Workers без явного yield — preempt по флагу от timer
-  - `ticks` shell command
-  - **Примечание:** switch в task context (не `iretq` из ISR) — `iretq`-preempt отложен
+- **Phase 1** — cooperative kernel threads, lock-free KEY_BUFFER
+- **Phase 2** — preemptive timer (flag + safe point), idle task, `PreemptGuard`, `ticks`
+- **Phase 3** — priority queue (4 levels) + aging, `ps`, boot dispatch
+- **Phase 4 — block / wake**
+  - `TaskState::Blocked`, `wake_at` для sleep
+  - `sleep(ticks)` — блок до абсолютного tick
+  - `block_on_keyboard()` — input ждёт без busy-wait
+  - Keyboard ISR → `notify_keyboard_input()` → wake waiter
+  - Timer tick → `wake_sleepers(now)`
+  - Workers используют `sleep(5)` вместо busy-spin
+  - Shell: `sleep N` — тест блокировки
+  - `ps` показывает Blocked и WAKE_AT
 
 ## Будет сделано
 
 ### Phase 2.1 — True ISR context switch
-- [ ] `iretq` resume из timer ISR (сохранение реального interrupt frame)
+- [ ] `iretq` resume из timer ISR
 
 ### Phase 0 — Frame allocator
 - [ ] `deallocate_frame`, shell `mem`, mapped stacks
-
-### Phase 3 — Priority queue
-- [ ] Multi-level ready queues + aging
-
-### Phase 4 — Block / wake
-- [ ] Blocked, wait queues, `sleep(ticks)`
 
 ### Phase 5–7 — Processes
 - [ ] Page tables, Ring 3, exec, fork/COW, wait
@@ -39,10 +34,10 @@
 
 | Решение | Выбор | Статус |
 |---------|-------|--------|
-| Scheduling | Preemptive на timer IRQ | Phase 2 (flag + safe point) |
-| Стек | Отдельный на задачу | heap 16 KiB |
-| Ready queue | Приоритетная (+ aging) | FIFO (Phase 3) |
-| Switch point | Timer ISR | request в ISR, switch в task |
+| Scheduling | Preemptive на timer IRQ | ✅ |
+| Ready queue | Приоритетная (+ aging) | ✅ |
+| I/O | Block + wake | ✅ Phase 4 |
+| Стек | Отдельный на задачу | heap 32 KiB |
 | Изоляция | Процессы + page tables | Phase 5+ |
 
 ## Структура `task/`
@@ -51,8 +46,8 @@
 kernel/src/task/
 ├── mod.rs
 ├── context.rs
-├── switch.rs       — switch_task (ret)
-├── preempt.rs      — PreemptGuard, pending flag
-├── scheduler.rs
+├── switch.rs
+├── preempt.rs
+├── scheduler.rs   — block/wake, sleep, keyboard waiter
 └── demo.rs
 ```

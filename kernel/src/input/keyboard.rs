@@ -1,5 +1,29 @@
 pub fn scancode_to_ascii(scancode: u8) -> Option<char> {
     match scancode {
+        // Top-row digits (US QWERTY, Set 1)
+        0x02 => Some('1'),
+        0x03 => Some('2'),
+        0x04 => Some('3'),
+        0x05 => Some('4'),
+        0x06 => Some('5'),
+        0x07 => Some('6'),
+        0x08 => Some('7'),
+        0x09 => Some('8'),
+        0x0A => Some('9'),
+        0x0B => Some('0'),
+
+        // Numpad digits
+        0x47 => Some('7'),
+        0x48 => Some('8'),
+        0x49 => Some('9'),
+        0x4B => Some('4'),
+        0x4C => Some('5'),
+        0x4D => Some('6'),
+        0x4F => Some('1'),
+        0x50 => Some('2'),
+        0x51 => Some('3'),
+        0x52 => Some('0'),
+
         0x1E => Some('a'),
         0x30 => Some('b'),
         0x2E => Some('c'),

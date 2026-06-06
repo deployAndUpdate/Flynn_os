@@ -4,6 +4,9 @@ mod scheduler;
 mod switch;
 
 pub use preempt::PreemptGuard;
-pub use scheduler::{on_timer_tick, preempt_if_pending, spawn, start, yield_now};
+pub use scheduler::{
+    block_on_keyboard, notify_keyboard_input, on_timer_tick, preempt_if_pending, print_ps, sleep,
+    spawn, start,
+};
 
 pub mod demo;
