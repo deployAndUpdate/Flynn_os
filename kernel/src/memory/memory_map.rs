@@ -26,8 +26,7 @@ pub fn print_memory_map(memory_regions: &MemoryRegions) {
         writeln!(
             logger,
             "  {kind}: {:#018x}..{:#018x} ({size} bytes)",
-            region.start,
-            region.end,
+            region.start, region.end,
         )
         .ok();
     }
@@ -50,9 +49,7 @@ pub fn is_usable(kind: MemoryRegionKind) -> bool {
     kind == MemoryRegionKind::Usable
 }
 
-pub fn usable_regions(
-    memory_regions: &MemoryRegions,
-) -> impl Iterator<Item = (usize, usize)> + '_ {
+pub fn usable_regions(memory_regions: &MemoryRegions) -> impl Iterator<Item = (usize, usize)> + '_ {
     memory_regions.iter().filter_map(|region| {
         if is_usable(region.kind) {
             Some((region.start as usize, region.end as usize))

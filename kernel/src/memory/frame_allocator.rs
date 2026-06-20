@@ -160,7 +160,7 @@ pub fn stats() -> Result<FrameStats, FrameError> {
 }
 
 pub fn allocate_frame() -> Result<Frame, FrameError> {
-    BootFrameAllocator::with_inner(|meta, bitmap| allocate_frame_inner(meta, bitmap))
+    BootFrameAllocator::with_inner(allocate_frame_inner)
         .flatten()
         .ok_or(FrameError::Exhausted)
 }

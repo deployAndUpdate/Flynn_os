@@ -64,9 +64,7 @@ impl Scheduler {
     fn new() -> Self {
         Self {
             tasks: Vec::new(),
-            ready: (0..MAX_PRIORITY)
-                .map(|_| VecDeque::new())
-                .collect(),
+            ready: (0..MAX_PRIORITY).map(|_| VecDeque::new()).collect(),
             current: None,
             keyboard_waiter: None,
             next_id: 1,
@@ -203,7 +201,9 @@ impl Scheduler {
             return;
         }
 
-        let idx = self.current.expect("block_on_keyboard without current task");
+        let idx = self
+            .current
+            .expect("block_on_keyboard without current task");
         self.keyboard_waiter = Some(idx);
         self.tasks[idx].state = TaskState::Blocked;
         self.tasks[idx].wake_at = None;
@@ -245,55 +245,48 @@ impl Scheduler {
     }
 
     fn schedule_next(&mut self) {
-        loop {
-            let next_idx = if self.started {
-                match self.pop_highest_ready() {
-                    Some(idx) => idx,
-                    None => break,
-                }
-            } else {
-                match self.pop_bootstrap_task() {
-                    Some(idx) => idx,
-                    None => break,
-                }
-            };
+        let next_idx = if self.started {
+            self.pop_highest_ready()
+        } else {
+            self.pop_bootstrap_task()
+        };
 
-            let prev_idx = self.current;
-
-            if prev_idx == Some(next_idx) {
-                self.tasks[next_idx].state = TaskState::Running;
-                self.tasks[next_idx].wait_ticks = 0;
-                return;
+        let Some(next_idx) = next_idx else {
+            let mut logger = Logger;
+            let _ = writeln!(logger, "[task] no runnable tasks — halt");
+            loop {
+                x86_64::instructions::hlt();
             }
+        };
 
+        let prev_idx = self.current;
+
+        if prev_idx == Some(next_idx) {
             self.tasks[next_idx].state = TaskState::Running;
             self.tasks[next_idx].wait_ticks = 0;
-            self.current = Some(next_idx);
+            return;
+        }
 
-            let next_ctx = self.tasks[next_idx].context;
+        self.tasks[next_idx].state = TaskState::Running;
+        self.tasks[next_idx].wait_ticks = 0;
+        self.current = Some(next_idx);
 
-            if let Some(prev) = prev_idx {
-                if !self.started {
-                    panic!("schedule_next: prev task exists before scheduler started");
-                }
-                let prev_ctx = &mut self.tasks[prev].context;
-                unsafe {
-                    switch_task(prev_ctx, &next_ctx);
-                }
-                return;
+        let next_ctx = self.tasks[next_idx].context;
+
+        if let Some(prev) = prev_idx {
+            if !self.started {
+                panic!("schedule_next: prev task exists before scheduler started");
             }
-
-            self.started = true;
+            let prev_ctx = &mut self.tasks[prev].context;
             unsafe {
-                switch_task(&mut self.bootstrap, &next_ctx);
+                switch_task(prev_ctx, &next_ctx);
             }
             return;
         }
 
-        let mut logger = Logger;
-        let _ = writeln!(logger, "[task] no runnable tasks — halt");
-        loop {
-            x86_64::instructions::hlt();
+        self.started = true;
+        unsafe {
+            switch_task(&mut self.bootstrap, &next_ctx);
         }
     }
 

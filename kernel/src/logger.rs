@@ -1,5 +1,5 @@
-use core::fmt;
 use crate::driver::serial::SerialPort;
+use core::fmt;
 
 pub struct Logger;
 

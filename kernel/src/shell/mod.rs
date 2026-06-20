@@ -1,7 +1,6 @@
 pub mod commands;
 use crate::driver::serial::SerialPort;
 
-
 pub fn execute(cmd: &str) {
     let cmd = cmd.trim();
     if cmd.is_empty() {

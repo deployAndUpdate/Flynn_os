@@ -3,4 +3,5 @@ target/
 Cargo.lock
 .idea/
 .vscode/
+.cursor/
 .DS_Store

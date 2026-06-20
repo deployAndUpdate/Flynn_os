@@ -30,13 +30,15 @@ fn main() -> ExitCode {
 
     match mode {
         BootMode::Bios => {
-            cmd.arg("-drive").arg(format!("format=raw,file={bios_path}"));
+            cmd.arg("-drive")
+                .arg(format!("format=raw,file={bios_path}"));
         }
         BootMode::Uefi => {
             let ovmf_code = ovmf_path("FLYNN_OVMF_CODE", "/usr/share/OVMF/OVMF_CODE.fd");
             let ovmf_vars = ovmf_path("FLYNN_OVMF_VARS", "/usr/share/OVMF/OVMF_VARS.fd");
 
-            cmd.arg("-drive").arg(format!("format=raw,file={uefi_path}"));
+            cmd.arg("-drive")
+                .arg(format!("format=raw,file={uefi_path}"));
             cmd.arg("-drive").arg(format!(
                 "if=pflash,format=raw,unit=0,file={},readonly=on",
                 ovmf_code.display()

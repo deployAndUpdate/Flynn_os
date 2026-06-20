@@ -91,6 +91,7 @@ pub fn map_region(
     }
 }
 
+#[allow(dead_code)]
 pub fn map_example(
     page_table: &mut OffsetPageTable,
     page: Page<Size4KiB>,

@@ -13,7 +13,7 @@ impl SerialPort {
             let mut port = Port::<u8>::new(COM1 + 3);
             port.write(0x80); // enable DLAB
 
-            let mut port = Port::<u8>::new(COM1 + 0);
+            let mut port = Port::<u8>::new(COM1);
             port.write(0x03); // baud divisor low (38400)
 
             let mut port = Port::<u8>::new(COM1 + 1);
