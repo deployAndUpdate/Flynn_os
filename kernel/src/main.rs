@@ -126,7 +126,11 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         writeln!(logger, "No framebuffer").ok();
     }
 
-    writeln!(logger, "[task] spawning demo tasks (phase 2.1 timer preempt)").ok();
+    writeln!(
+        logger,
+        "[task] spawning demo tasks (phase 2.1 timer preempt)"
+    )
+    .ok();
 
     task::spawn(task::demo::worker_a, 1);
     task::spawn(task::demo::worker_b, 1);

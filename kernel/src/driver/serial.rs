@@ -35,9 +35,7 @@ impl SerialPort {
     }
 
     pub fn has_byte() -> bool {
-        unsafe {
-            Port::<u8>::new(COM1_LSR).read() & LSR_DATA_READY != 0
-        }
+        unsafe { Port::<u8>::new(COM1_LSR).read() & LSR_DATA_READY != 0 }
     }
 
     pub fn try_read_byte() -> Option<u8> {
