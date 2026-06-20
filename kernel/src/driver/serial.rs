@@ -1,5 +1,7 @@
 use x86_64::instructions::port::Port;
 
+use crate::task::PreemptGuard;
+
 const COM1: u16 = 0x3F8;
 
 pub struct SerialPort;
@@ -41,5 +43,11 @@ impl SerialPort {
         for b in s.bytes() {
             Self::send(b);
         }
+    }
+
+    /// Whole string without ISR preemption — prevents byte interleaving between tasks.
+    pub fn write_str_no_preempt(s: &str) {
+        let _guard = PreemptGuard::new();
+        Self::write_str(s);
     }
 }

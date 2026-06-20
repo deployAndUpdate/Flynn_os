@@ -1,7 +1,7 @@
-use core::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use core::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 
 static PREEMPT_DEPTH: AtomicU32 = AtomicU32::new(0);
-static PREEMPT_PENDING: AtomicBool = AtomicBool::new(false);
+static ISR_PREEMPT_COUNT: AtomicU64 = AtomicU64::new(0);
 
 pub struct PreemptGuard;
 
@@ -22,12 +22,10 @@ pub fn is_disabled() -> bool {
     PREEMPT_DEPTH.load(Ordering::SeqCst) > 0
 }
 
-/// Set by timer ISR when quantum expires.
-pub fn request() {
-    PREEMPT_PENDING.store(true, Ordering::SeqCst);
+pub fn record_isr_preempt() {
+    ISR_PREEMPT_COUNT.fetch_add(1, Ordering::SeqCst);
 }
 
-/// Checked by tasks at safe points; clears the flag.
-pub fn take_pending() -> bool {
-    PREEMPT_PENDING.swap(false, Ordering::SeqCst)
+pub fn isr_preempt_count() -> u64 {
+    ISR_PREEMPT_COUNT.load(Ordering::SeqCst)
 }

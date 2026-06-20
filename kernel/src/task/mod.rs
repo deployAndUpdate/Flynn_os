@@ -5,7 +5,7 @@ mod switch;
 
 pub use preempt::PreemptGuard;
 pub use scheduler::{
-    block_on_keyboard, notify_keyboard_input, on_timer_tick, preempt_if_pending, print_ps, sleep,
+    block_on_keyboard, isr_preempt_count, notify_keyboard_input, on_timer_tick, print_ps, sleep,
     spawn, start,
 };
 

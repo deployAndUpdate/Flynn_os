@@ -55,11 +55,11 @@ fn handle_enter() {
         cmd
     };
 
-    SerialPort::write_str("\n");
+    SerialPort::write_str_no_preempt("\n");
     if !command.is_empty() {
         crate::shell::execute(&command);
     }
-    SerialPort::write_str("> ");
+    SerialPort::write_str_no_preempt("> ");
 }
 
 fn handle_backspace() {
@@ -69,11 +69,11 @@ fn handle_backspace() {
         line.pop()
     };
     if popped.is_some() {
-        SerialPort::write_str("\x08 \x08");
+        SerialPort::write_str_no_preempt("\x08 \x08");
     }
 }
 
 fn echo_char(ch: char) {
     let mut buf = [0u8; 4];
-    SerialPort::write_str(ch.encode_utf8(&mut buf));
+    SerialPort::write_str_no_preempt(ch.encode_utf8(&mut buf));
 }

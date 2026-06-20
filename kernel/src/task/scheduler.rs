@@ -3,15 +3,16 @@ use alloc::vec::Vec;
 use core::cell::UnsafeCell;
 use core::fmt::Write;
 use lazy_static::lazy_static;
+use x86_64::structures::idt::InterruptStackFrame;
 
 use crate::driver::serial::SerialPort;
 use crate::interrupts::handler;
 use crate::interrupts::keyboard;
 use crate::logger::Logger;
 use crate::memory::stack::MappedStack;
-use crate::task::context::{allocate_stack, init_context, TaskContext};
+use crate::task::context::{allocate_stack, init_context, save_preempt_frame, TaskContext};
 use crate::task::preempt;
-use crate::task::switch::switch_task;
+use crate::task::switch::{first_task_run, switch_task, switch_to};
 
 pub type TaskId = u64;
 
@@ -51,7 +52,6 @@ struct Scheduler {
     current: Option<usize>,
     keyboard_waiter: Option<usize>,
     next_id: TaskId,
-    bootstrap: TaskContext,
     started: bool,
     quantum: u32,
 }
@@ -68,7 +68,6 @@ impl Scheduler {
             current: None,
             keyboard_waiter: None,
             next_id: 1,
-            bootstrap: TaskContext { rsp: 0 },
             started: false,
             quantum: QUANTUM_TICKS,
         }
@@ -210,6 +209,7 @@ impl Scheduler {
         self.schedule_next();
     }
 
+    #[allow(dead_code)]
     fn yield_current(&mut self) {
         let current_idx = match self.current {
             Some(idx) => idx,
@@ -286,11 +286,52 @@ impl Scheduler {
 
         self.started = true;
         unsafe {
-            switch_task(&mut self.bootstrap, &next_ctx);
+            first_task_run(&next_ctx);
         }
     }
 
-    fn on_timer_tick(&mut self, now: u64) {
+    fn preempt_from_interrupt(&mut self, frame: &InterruptStackFrame) {
+        let current_idx = match self.current {
+            Some(idx) => idx,
+            None => return,
+        };
+
+        if self.active_count() <= 1 {
+            return;
+        }
+
+        self.enqueue_ready(current_idx);
+
+        let next_idx = match self.pop_highest_ready() {
+            Some(idx) => idx,
+            None => {
+                self.tasks[current_idx].state = TaskState::Running;
+                self.current = Some(current_idx);
+                return;
+            }
+        };
+
+        if next_idx == current_idx {
+            self.tasks[current_idx].state = TaskState::Running;
+            return;
+        }
+
+        let saved = save_preempt_frame(&self.tasks[current_idx].stack, frame);
+        self.tasks[current_idx].context = saved;
+
+        self.tasks[next_idx].state = TaskState::Running;
+        self.tasks[next_idx].wait_ticks = 0;
+        self.current = Some(next_idx);
+
+        let next_ctx = self.tasks[next_idx].context;
+        preempt::record_isr_preempt();
+
+        unsafe {
+            switch_to(&next_ctx);
+        }
+    }
+
+    fn on_timer_tick(&mut self, now: u64, frame: &InterruptStackFrame) {
         self.wake_sleepers(now);
 
         if self.started && !preempt::is_disabled() {
@@ -307,7 +348,7 @@ impl Scheduler {
         self.quantum = self.quantum.saturating_sub(1);
         if self.quantum == 0 {
             self.quantum = QUANTUM_TICKS;
-            preempt::request();
+            self.preempt_from_interrupt(frame);
         }
     }
 
@@ -315,8 +356,7 @@ impl Scheduler {
         let mut logger = Logger;
         let _ = writeln!(
             logger,
-            "[task] starting block/wake scheduler ({} tasks, quantum={} ticks)",
-            self.tasks.len(),
+            "[task] phase 2.1: ISR preempt (iretq), quantum={} ticks",
             QUANTUM_TICKS
         );
         self.schedule_next();
@@ -331,6 +371,7 @@ impl Scheduler {
     }
 
     fn print_ps(&self) {
+        let _guard = crate::task::PreemptGuard::new();
         SerialPort::write_str("ID  PRIO  STATE     WAIT  WAKE_AT\n");
         for task in &self.tasks {
             SerialPort::write_str(" ");
@@ -386,6 +427,7 @@ pub fn spawn(entry: fn(), priority: u8) -> TaskId {
     scheduler().spawn(entry, priority)
 }
 
+#[allow(dead_code)]
 pub fn yield_now() {
     scheduler().yield_current();
 }
@@ -408,15 +450,13 @@ pub fn notify_keyboard_input() {
     scheduler().wake_keyboard_waiter();
 }
 
-pub fn on_timer_tick() {
+pub fn on_timer_tick(frame: InterruptStackFrame) {
     let now = handler::ticks();
-    scheduler().on_timer_tick(now);
+    scheduler().on_timer_tick(now, &frame);
 }
 
-pub fn preempt_if_pending() {
-    if preempt::take_pending() && !preempt::is_disabled() {
-        yield_now();
-    }
+pub fn isr_preempt_count() -> u64 {
+    preempt::isr_preempt_count()
 }
 
 pub fn print_ps() {

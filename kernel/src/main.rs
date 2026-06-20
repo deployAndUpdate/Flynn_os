@@ -126,14 +126,13 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         writeln!(logger, "No framebuffer").ok();
     }
 
-    writeln!(logger, "[task] phase 0: frame bitmap + mapped stacks").ok();
+    writeln!(logger, "[task] spawning demo tasks (phase 2.1 ISR preempt)").ok();
 
     task::spawn(task::demo::worker_a, 1);
     task::spawn(task::demo::worker_b, 1);
     task::spawn(task::demo::input_loop, 2);
     task::spawn(task::demo::idle, 0);
 
-    crate::driver::serial::SerialPort::write_str("> ");
     writeln!(logger, "Hi from kernel (serial)").ok();
 
     task::start();
