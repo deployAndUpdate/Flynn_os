@@ -1,3 +1,5 @@
+use crate::memory::stack::MappedStack;
+
 /// Saved CPU context for context switch (x86_64) — voluntary `ret` only.
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
@@ -5,12 +7,8 @@ pub struct TaskContext {
     pub rsp: u64,
 }
 
-const MIN_STACK_SIZE: usize = 4096 * 8;
-
-pub fn allocate_stack() -> alloc::vec::Vec<u8> {
-    let mut stack = alloc::vec::Vec::with_capacity(MIN_STACK_SIZE);
-    stack.resize(MIN_STACK_SIZE, 0);
-    stack
+pub fn allocate_stack(slot: u64) -> MappedStack {
+    MappedStack::allocate(slot)
 }
 
 /// Prepare a fresh stack so the first switch ret-jumps into `entry`.

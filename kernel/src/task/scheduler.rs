@@ -8,6 +8,7 @@ use crate::driver::serial::SerialPort;
 use crate::interrupts::handler;
 use crate::interrupts::keyboard;
 use crate::logger::Logger;
+use crate::memory::stack::MappedStack;
 use crate::task::context::{allocate_stack, init_context, TaskContext};
 use crate::task::preempt;
 use crate::task::switch::switch_task;
@@ -38,7 +39,9 @@ struct Task {
     wait_ticks: u32,
     wake_at: Option<u64>,
     context: TaskContext,
-    stack: Vec<u8>,
+    /// Keeps the mapped stack region alive for the task lifetime.
+    #[allow(dead_code)]
+    stack: MappedStack,
     entry: fn(),
 }
 
@@ -160,8 +163,8 @@ impl Scheduler {
         self.next_id += 1;
         let priority = Self::clamp_priority(priority);
 
-        let mut stack = allocate_stack();
-        let context = init_context(&mut stack, task_trampoline);
+        let mut stack = allocate_stack(id);
+        let context = init_context(stack.as_mut_bytes(), task_trampoline);
 
         let index = self.tasks.len();
         self.tasks.push(Task {
