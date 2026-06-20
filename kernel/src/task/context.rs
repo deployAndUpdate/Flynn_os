@@ -56,7 +56,7 @@ pub fn save_preempt_frame(stack: &MappedStack, frame: &InterruptStackFrame) -> T
     let frame_size = size_of::<InterruptStackFrame>();
     let align = align_of::<InterruptStackFrame>();
     let mut sp = stack.bottom();
-    if sp % align != 0 {
+    if !sp.is_multiple_of(align) {
         sp += align - (sp % align);
     }
 
