@@ -1,0 +1,1515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flynn OS — Documentation</title>
+  <style>
+    :root {
+      --bg: #0a0e14;
+      --bg-panel: #0f1419;
+      --bg-hover: #151c24;
+      --border: #1e2a36;
+      --text: #c8d6e5;
+      --text-muted: #6b7f94;
+      --accent: #00d4ff;
+      --accent-dim: #0099bb;
+      --accent-glow: rgba(0, 212, 255, 0.15);
+      --green: #39ff14;
+      --amber: #ffb020;
+      --red: #ff4757;
+      --sidebar-w: 280px;
+      --header-h: 56px;
+      --font-mono: "JetBrains Mono", "Fira Code", "Cascadia Code", ui-monospace, monospace;
+      --font-sans: "Segoe UI", system-ui, sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background:
+        linear-gradient(90deg, var(--border) 1px, transparent 1px) 0 0 / 40px 40px,
+        linear-gradient(var(--border) 1px, transparent 1px) 0 0 / 40px 40px;
+      opacity: 0.25;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: var(--header-h);
+      background: rgba(10, 14, 20, 0.92);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1.5rem;
+      z-index: 100;
+    }
+
+    .logo {
+      font-family: var(--font-mono);
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--accent);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .logo span { color: var(--text-muted); font-weight: 400; }
+
+    .lang-switch {
+      display: flex;
+      gap: 0;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .lang-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      padding: 0.4rem 0.75rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .lang-btn:hover { color: var(--text); background: var(--bg-hover); }
+    .lang-btn.active { color: var(--bg); background: var(--accent); font-weight: 600; }
+
+    .layout {
+      display: flex;
+      padding-top: var(--header-h);
+      position: relative;
+      z-index: 1;
+    }
+
+    nav.sidebar {
+      position: fixed;
+      top: var(--header-h);
+      left: 0;
+      width: var(--sidebar-w);
+      height: calc(100vh - var(--header-h));
+      background: var(--bg-panel);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 1rem 0;
+    }
+
+    nav.sidebar ul { list-style: none; }
+
+    nav.sidebar a {
+      display: block;
+      padding: 0.45rem 1.25rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.875rem;
+      border-left: 2px solid transparent;
+      transition: all 0.15s;
+    }
+
+    nav.sidebar a:hover { color: var(--text); background: var(--bg-hover); }
+    nav.sidebar a.active {
+      color: var(--accent);
+      border-left-color: var(--accent);
+      background: var(--accent-glow);
+    }
+
+    nav.sidebar .nav-group {
+      padding: 0.75rem 1.25rem 0.25rem;
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
+    main {
+      margin-left: var(--sidebar-w);
+      flex: 1;
+      max-width: 900px;
+      padding: 2rem 2.5rem 4rem;
+    }
+
+    section {
+      margin-bottom: 3.5rem;
+      scroll-margin-top: calc(var(--header-h) + 1rem);
+    }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 0.5rem;
+      font-family: var(--font-mono);
+    }
+
+    h2 {
+      font-size: 1.35rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--accent-dim);
+      margin: 1.5rem 0 0.75rem;
+      font-family: var(--font-mono);
+    }
+
+    p { margin-bottom: 1rem; color: var(--text); }
+    .lead { font-size: 1.05rem; color: var(--text-muted); margin-bottom: 1.5rem; }
+
+    code, .mono {
+      font-family: var(--font-mono);
+      font-size: 0.85em;
+      background: var(--bg-hover);
+      padding: 0.15em 0.4em;
+      border-radius: 3px;
+      color: var(--accent);
+    }
+
+    pre {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1rem 1.25rem;
+      overflow-x: auto;
+      margin: 1rem 0;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      line-height: 1.5;
+      color: var(--text);
+    }
+
+    pre .comment { color: var(--text-muted); }
+    pre .tag { color: var(--accent); }
+    pre .val { color: var(--green); }
+
+    .panel {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1.25rem;
+      margin: 1rem 0;
+    }
+
+    .panel-accent { border-color: var(--accent-dim); box-shadow: 0 0 20px var(--accent-glow); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+      margin: 1rem 0;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 0.6rem 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      color: var(--accent-dim);
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .badge {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: 3px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .badge-done { background: rgba(57, 255, 20, 0.12); color: var(--green); border: 1px solid rgba(57, 255, 20, 0.3); }
+    .badge-planned { background: rgba(255, 176, 32, 0.12); color: var(--amber); border: 1px solid rgba(255, 176, 32, 0.3); }
+
+    /* Architecture diagram */
+    .arch-flow {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      margin: 1.5rem 0;
+    }
+
+    .arch-layer {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1rem 1.25rem;
+      background: var(--bg-panel);
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+    }
+
+    .arch-layer:hover, .arch-layer.expanded {
+      border-color: var(--accent-dim);
+      background: var(--bg-hover);
+    }
+
+    .arch-layer.expanded { box-shadow: 0 0 16px var(--accent-glow); }
+
+    .arch-layer + .arch-layer { margin-top: -1px; border-top-left-radius: 0; border-top-right-radius: 0; }
+    .arch-layer:not(:last-child) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+
+    .arch-layer-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .arch-layer-title {
+      font-family: var(--font-mono);
+      font-weight: 600;
+      color: var(--accent);
+      font-size: 0.9rem;
+    }
+
+    .arch-layer-arrow { color: var(--text-muted); transition: transform 0.2s; }
+    .arch-layer.expanded .arch-layer-arrow { transform: rotate(180deg); }
+
+    .arch-layer-body {
+      display: none;
+      margin-top: 0.75rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+
+    .arch-layer.expanded .arch-layer-body { display: block; }
+
+    .arch-connector {
+      text-align: center;
+      color: var(--accent-dim);
+      font-size: 1.2rem;
+      line-height: 1;
+      padding: 0.25rem 0;
+    }
+
+    /* Boot timeline */
+    .timeline {
+      position: relative;
+      padding-left: 2rem;
+      margin: 1.5rem 0;
+    }
+
+    .timeline::before {
+      content: "";
+      position: absolute;
+      left: 0.45rem;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: var(--border);
+    }
+
+    .timeline-step {
+      position: relative;
+      margin-bottom: 0.5rem;
+      cursor: pointer;
+    }
+
+    .timeline-step::before {
+      content: "";
+      position: absolute;
+      left: -1.65rem;
+      top: 0.55rem;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--bg);
+      border: 2px solid var(--border);
+      transition: all 0.2s;
+    }
+
+    .timeline-step.active::before { border-color: var(--accent); background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+    .timeline-step.done::before { border-color: var(--green); background: var(--green); }
+
+    .timeline-label {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      padding: 0.35rem 0;
+      transition: color 0.2s;
+    }
+
+    .timeline-step.active .timeline-label { color: var(--accent); }
+    .timeline-step.done .timeline-label { color: var(--text); }
+
+    .timeline-detail {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1rem;
+      margin: 0.75rem 0 1rem;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      color: var(--green);
+      min-height: 3rem;
+      white-space: pre-wrap;
+    }
+
+    .timeline-controls {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      padding: 0.4rem 0.85rem;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn:hover { border-color: var(--accent-dim); color: var(--accent); }
+    .btn-primary { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 600; }
+    .btn-primary:hover { background: var(--accent-dim); border-color: var(--accent-dim); color: var(--bg); }
+
+    /* Memory map */
+    .mem-map {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin: 1rem 0;
+    }
+
+    .mem-region {
+      display: flex;
+      align-items: stretch;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .mem-region:hover, .mem-region.selected {
+      border-color: var(--accent-dim);
+      box-shadow: 0 0 12px var(--accent-glow);
+    }
+
+    .mem-bar {
+      width: 6px;
+      flex-shrink: 0;
+    }
+
+    .mem-bar.heap { background: var(--accent); }
+    .mem-bar.stack { background: var(--green); }
+    .mem-bar.phys { background: var(--amber); }
+
+    .mem-info { padding: 0.75rem 1rem; flex: 1; }
+    .mem-addr { font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent); }
+    .mem-name { font-weight: 600; font-size: 0.875rem; }
+    .mem-desc { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem; display: none; }
+    .mem-region.selected .mem-desc { display: block; }
+
+    /* Scheduler */
+    .state-machine {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin: 1rem 0;
+    }
+
+    .state-node {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.75rem 1rem;
+      min-width: 110px;
+      text-align: center;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .state-node:hover, .state-node.active {
+      border-color: var(--accent);
+      background: var(--accent-glow);
+      color: var(--accent);
+    }
+
+    .state-desc {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1rem;
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      min-height: 4rem;
+    }
+
+    /* File tree */
+    .file-tree {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      line-height: 1.8;
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1rem 1.25rem;
+    }
+
+    .file-tree .dir { color: var(--accent); }
+    .file-tree .file { color: var(--text); }
+    .file-tree .comment { color: var(--text-muted); }
+
+    /* Roadmap */
+    .roadmap {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .phase-card {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1rem 1.25rem;
+      background: var(--bg-panel);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .phase-card:hover, .phase-card.open {
+      border-color: var(--accent-dim);
+    }
+
+    .phase-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .phase-title { font-family: var(--font-mono); font-weight: 600; }
+    .phase-body {
+      display: none;
+      margin-top: 0.75rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+
+    .phase-card.open .phase-body { display: block; }
+
+    /* Shell terminal demo */
+    .terminal {
+      background: #000;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1rem;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      color: var(--green);
+      min-height: 200px;
+      overflow-y: auto;
+    }
+
+    .terminal .prompt { color: var(--accent); }
+    .terminal .cmd-btns { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.75rem; }
+
+    /* Keyboard flow */
+    .flow-steps {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin: 1rem 0;
+    }
+
+    .flow-step {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.5rem 0.75rem;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .flow-step:hover, .flow-step.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-glow);
+    }
+
+    .flow-arrow { color: var(--text-muted); }
+
+    .mobile-toggle {
+      display: none;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.35rem 0.6rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+
+    @media (max-width: 768px) {
+      :root { --sidebar-w: 0px; }
+      nav.sidebar {
+        transform: translateX(-100%);
+        width: 260px;
+        transition: transform 0.2s;
+        z-index: 90;
+      }
+      nav.sidebar.open { transform: translateX(0); }
+      main { margin-left: 0; padding: 1.5rem 1rem 3rem; }
+      .mobile-toggle { display: block; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div style="display:flex;align-items:center;gap:1rem;">
+      <button class="mobile-toggle" id="menuToggle" aria-label="Menu">☰</button>
+      <div class="logo">Flynn <span>OS</span></div>
+    </div>
+    <div class="lang-switch">
+      <button class="lang-btn active" data-lang="en">EN</button>
+      <button class="lang-btn" data-lang="ru">RU</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav class="sidebar" id="sidebar">
+      <div class="nav-group" data-i18n="nav.overview">Overview</div>
+      <ul>
+        <li><a href="#intro" data-i18n="nav.intro">Introduction</a></li>
+        <li><a href="#quickstart" data-i18n="nav.quickstart">Quick Start</a></li>
+        <li><a href="#architecture" data-i18n="nav.architecture">Architecture</a></li>
+      </ul>
+      <div class="nav-group" data-i18n="nav.internals">Internals</div>
+      <ul>
+        <li><a href="#boot" data-i18n="nav.boot">Boot Sequence</a></li>
+        <li><a href="#memory" data-i18n="nav.memory">Memory</a></li>
+        <li><a href="#interrupts" data-i18n="nav.interrupts">Interrupts</a></li>
+        <li><a href="#scheduler" data-i18n="nav.scheduler">Scheduler</a></li>
+        <li><a href="#input-shell" data-i18n="nav.shell">Input & Shell</a></li>
+      </ul>
+      <div class="nav-group" data-i18n="nav.reference">Reference</div>
+      <ul>
+        <li><a href="#structure" data-i18n="nav.structure">Project Structure</a></li>
+        <li><a href="#roadmap" data-i18n="nav.roadmap">Roadmap</a></li>
+        <li><a href="#tech" data-i18n="nav.tech">Tech Stack</a></li>
+      </ul>
+    </nav>
+
+    <main>
+      <!-- INTRO -->
+      <section id="intro">
+        <h1 data-i18n="intro.title">Flynn OS</h1>
+        <p class="lead" data-i18n="intro.lead">Experimental bare-metal x86_64 kernel written in Rust. Serial-first OS with preemptive kernel threads, priority scheduling, and block/wake I/O.</p>
+
+        <div class="panel panel-accent">
+          <p data-i18n="intro.status"><strong>Current phase:</strong> Kernel threads + preemptive scheduler + block/wake. User processes (Ring 3) planned for Phase 5+.</p>
+        </div>
+
+        <h3 data-i18n="intro.features">Key capabilities</h3>
+        <table>
+          <thead>
+            <tr>
+              <th data-i18n="intro.col.feature">Feature</th>
+              <th data-i18n="intro.col.status">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td data-i18n="intro.f1">Bare-metal boot (BIOS / UEFI)</td><td><span class="badge badge-done" data-i18n="badge.done">Done</span></td></tr>
+            <tr><td data-i18n="intro.f2">Paging, heap, frame allocator</td><td><span class="badge badge-done" data-i18n="badge.done">Done</span></td></tr>
+            <tr><td data-i18n="intro.f3">PIC, PIT timer, keyboard ISR</td><td><span class="badge badge-done" data-i18n="badge.done">Done</span></td></tr>
+            <tr><td data-i18n="intro.f4">Preemptive scheduler + aging</td><td><span class="badge badge-done" data-i18n="badge.done">Done</span></td></tr>
+            <tr><td data-i18n="intro.f5">Block/wake (sleep, keyboard)</td><td><span class="badge badge-done" data-i18n="badge.done">Done</span></td></tr>
+            <tr><td data-i18n="intro.f6">User processes, syscalls</td><td><span class="badge badge-planned" data-i18n="badge.planned">Planned</span></td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- QUICK START -->
+      <section id="quickstart">
+        <h2 data-i18n="qs.title">Quick Start</h2>
+        <p data-i18n="qs.desc">Flynn OS runs inside QEMU. Build the workspace and launch the BIOS image:</p>
+
+        <pre><span class="comment"># Build kernel + disk images</span>
+cargo build
+
+<span class="comment"># Run in QEMU (serial → stdout)</span>
+cargo run
+
+<span class="comment"># UEFI boot (requires OVMF firmware)</span>
+cargo run -- uefi</pre>
+
+        <p data-i18n="qs.output">Expected output: memory map, frame allocator stats, heap init, interrupt setup, ASCII banner, then alternating worker output and shell prompt <code>&gt; </code>.</p>
+
+        <h3 data-i18n="qs.pass">Pass criteria</h3>
+        <ol style="padding-left:1.25rem;color:var(--text-muted);font-size:0.9rem;">
+          <li data-i18n="qs.p1">Memory map printed at boot</li>
+          <li data-i18n="qs.p2">Workers alternate: A:0 … B:done</li>
+          <li data-i18n="qs.p3">Shell prompt responsive</li>
+          <li data-i18n="qs.p4"><code>help</code>, <code>ticks</code>, <code>sleep 50</code> → <code>woke up</code></li>
+        </ol>
+      </section>
+
+      <!-- ARCHITECTURE -->
+      <section id="architecture">
+        <h2 data-i18n="arch.title">Architecture Overview</h2>
+        <p data-i18n="arch.desc">Flynn OS has two layers: a host runner (std Rust) that builds and launches QEMU, and a no_std kernel that runs on bare metal. Click each layer to expand details.</p>
+
+        <div class="arch-flow" id="archFlow">
+          <div class="arch-layer" data-layer="host">
+            <div class="arch-layer-header">
+              <span class="arch-layer-title" data-i18n="arch.host.title">Host Layer (std Rust)</span>
+              <span class="arch-layer-arrow">▼</span>
+            </div>
+            <div class="arch-layer-body" data-i18n="arch.host.body">Cargo workspace root. build.rs compiles the kernel binary and packages it into bios.img / uefi.img. src/main.rs launches qemu-system-x86_64 with -serial stdio — all kernel output goes to your terminal.</div>
+          </div>
+          <div class="arch-connector">↓</div>
+          <div class="arch-layer" data-layer="boot">
+            <div class="arch-layer-header">
+              <span class="arch-layer-title" data-i18n="arch.boot.title">Bootloader (rust-osdev 0.11)</span>
+              <span class="arch-layer-arrow">▼</span>
+            </div>
+            <div class="arch-layer-body" data-i18n="arch.boot.body">BIOS or UEFI boot loads the kernel ELF. Passes BootInfo: memory map, physical memory offset, optional GOP framebuffer. Sets up long mode and jumps to kernel_main.</div>
+          </div>
+          <div class="arch-connector">↓</div>
+          <div class="arch-layer" data-layer="kernel">
+            <div class="arch-layer-header">
+              <span class="arch-layer-title" data-i18n="arch.kernel.title">Kernel (no_std, x86_64-unknown-none)</span>
+              <span class="arch-layer-arrow">▼</span>
+            </div>
+            <div class="arch-layer-body" data-i18n="arch.kernel.body">Core subsystems: memory (paging, heap, frames), interrupts (IDT, PIC, PIT, keyboard), task scheduler (preempt, priority, block/wake), serial driver, shell REPL. Minimal framebuffer marker as graphics PoC.</div>
+          </div>
+        </div>
+
+        <h3 data-i18n="arch.dataflow">Data flow</h3>
+        <div class="panel">
+          <p data-i18n="arch.flow1"><strong>Keyboard:</strong> PS/2 IRQ → ISR enqueues scancode → SPSC queue → input_loop task → terminal line editor → shell command on Enter</p>
+          <p data-i18n="arch.flow2"><strong>Timer:</strong> PIT ~100 Hz → timer ISR increments ticks → on_timer_tick() → preempt flag / wake blocked tasks / aging</p>
+          <p data-i18n="arch.flow3"><strong>Output:</strong> All logging and shell I/O via COM1 serial port (0x3F8), forwarded by QEMU to host stdout</p>
+        </div>
+      </section>
+
+      <!-- BOOT -->
+      <section id="boot">
+        <h2 data-i18n="boot.title">Boot Sequence</h2>
+        <p data-i18n="boot.desc">Step through kernel initialization. Each step corresponds to log tags in serial output.</p>
+
+        <div class="timeline-controls">
+          <button class="btn btn-primary" id="bootPlay" data-i18n="boot.play">▶ Play</button>
+          <button class="btn" id="bootReset" data-i18n="boot.reset">Reset</button>
+        </div>
+
+        <div class="timeline" id="bootTimeline"></div>
+        <div class="timeline-detail" id="bootDetail"></div>
+      </section>
+
+      <!-- MEMORY -->
+      <section id="memory">
+        <h2 data-i18n="mem.title">Memory Layout</h2>
+        <p data-i18n="mem.desc">Click a memory region to see details. Kernel uses fixed virtual addresses defined in layout.rs.</p>
+
+        <div class="mem-map" id="memMap"></div>
+
+        <h3 data-i18n="mem.frame.title">Frame Allocator</h3>
+        <p data-i18n="mem.frame.desc">Bitmap allocator over the largest usable RAM region (up to 128 MiB / 32768 frames). Boot self-test runs 64 allocate/free cycles. Task stacks use mapped frames — not heap allocation.</p>
+
+        <table>
+          <thead>
+            <tr>
+              <th data-i18n="mem.col.component">Component</th>
+              <th data-i18n="mem.col.module">Module</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td data-i18n="mem.m1">Bitmap frame allocator</td><td><code>memory/frame_allocator.rs</code></td></tr>
+            <tr><td data-i18n="mem.m2">Page table mapping</td><td><code>memory/paging.rs</code></td></tr>
+            <tr><td data-i18n="mem.m3">Heap (linked_list_allocator)</td><td><code>memory/heap.rs</code></td></tr>
+            <tr><td data-i18n="mem.m4">Mapped task stacks</td><td><code>memory/stack.rs</code></td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- INTERRUPTS -->
+      <section id="interrupts">
+        <h2 data-i18n="irq.title">Interrupts & Drivers</h2>
+        <p data-i18n="irq.desc">8259 PIC remapped (IRQ0=32 timer, IRQ1=33 keyboard). PIT configured for ~100 Hz. IDT loaded, then sti enables interrupts.</p>
+
+        <table>
+          <thead>
+            <tr>
+              <th data-i18n="irq.col.irq">IRQ</th>
+              <th data-i18n="irq.col.source">Source</th>
+              <th data-i18n="irq.col.handler">Handler action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>IRQ 0</td>
+              <td data-i18n="irq.timer.src">PIT Timer</td>
+              <td data-i18n="irq.timer.act">Increment ticks, notify scheduler (preempt, wake, aging)</td>
+            </tr>
+            <tr>
+              <td>IRQ 1</td>
+              <td data-i18n="irq.kbd.src">PS/2 Keyboard</td>
+              <td data-i18n="irq.kbd.act">Read scancode, enqueue to SPSC queue, wake keyboard waiter</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3 data-i18n="irq.serial.title">Serial Driver</h3>
+        <p data-i18n="irq.serial.desc">COM1 at port 0x3F8, 38400 baud. Logger, shell, and all user-facing output go through serial. QEMU maps this to host stdout via -serial stdio.</p>
+      </section>
+
+      <!-- SCHEDULER -->
+      <section id="scheduler">
+        <h2 data-i18n="sched.title">Task Scheduler</h2>
+        <p data-i18n="sched.desc">Preemptive scheduler with 4 priority levels (0=idle, 3=highest). Timer sets preempt flag; tasks check at safe points. Click a state to learn more.</p>
+
+        <div class="state-machine" id="stateMachine"></div>
+        <div class="state-desc" id="stateDesc"></div>
+
+        <h3 data-i18n="sched.params">Parameters</h3>
+        <table>
+          <thead>
+            <tr>
+              <th data-i18n="sched.col.param">Parameter</th>
+              <th data-i18n="sched.col.value">Value</th>
+              <th data-i18n="sched.col.meaning">Meaning</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>QUANTUM_TICKS</code></td>
+              <td>2</td>
+              <td data-i18n="sched.q.desc">Time slice (~20 ms at 100 Hz)</td>
+            </tr>
+            <tr>
+              <td><code>AGING_TICKS</code></td>
+              <td>15</td>
+              <td data-i18n="sched.a.desc">Ready tasks boost priority after this many ticks</td>
+            </tr>
+            <tr>
+              <td><code>MAX_PRIORITY</code></td>
+              <td>4</td>
+              <td data-i18n="sched.p.desc">Priority levels 0..3</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3 data-i18n="sched.boot.title">Boot tasks</h3>
+        <table>
+          <thead>
+            <tr>
+              <th data-i18n="sched.col.task">Task</th>
+              <th data-i18n="sched.col.prio">Priority</th>
+              <th data-i18n="sched.col.role">Role</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><code>worker_a</code></td><td>1</td><td data-i18n="sched.t1">Demo: prints A:0..4, sleeps, exits</td></tr>
+            <tr><td><code>worker_b</code></td><td>1</td><td data-i18n="sched.t2">Demo: prints B:0..4, sleeps, exits</td></tr>
+            <tr><td><code>input_loop</code></td><td>2</td><td data-i18n="sched.t3">Keyboard input or blocks on keyboard</td></tr>
+            <tr><td><code>idle</code></td><td>0</td><td data-i18n="sched.t4">hlt + preempt check when nothing runs</td></tr>
+          </tbody>
+        </table>
+
+        <h3 data-i18n="sched.ctx.title">Context switch</h3>
+        <p data-i18n="sched.ctx.desc">Assembly switch_task saves/restores RSP only. Stack initialized via init_context with a synthetic return to task entry. Phase 2.1 will add true ISR context switch via iretq from timer ISR.</p>
+      </section>
+
+      <!-- INPUT & SHELL -->
+      <section id="input-shell">
+        <h2 data-i18n="shell.title">Input & Shell</h2>
+        <p data-i18n="shell.desc">Serial REPL with prompt <code>&gt; </code>. Keyboard scancodes converted to ASCII in terminal.rs. Try commands in the demo terminal below.</p>
+
+        <div class="flow-steps" id="kbdFlow"></div>
+        <p id="kbdFlowDesc" style="font-size:0.875rem;color:var(--text-muted);min-height:2.5rem;"></p>
+
+        <div class="terminal" id="terminal">
+          <div id="termOutput"></div>
+          <div><span class="prompt">&gt; </span><span id="termInput"></span><span style="animation:blink 1s step-end infinite;">_</span></div>
+          <div class="cmd-btns" id="cmdBtns"></div>
+        </div>
+
+        <h3 data-i18n="shell.cmds">Commands</h3>
+        <table>
+          <thead>
+            <tr>
+              <th data-i18n="shell.col.cmd">Command</th>
+              <th data-i18n="shell.col.desc">Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><code>help</code></td><td data-i18n="shell.c1">List available commands</td></tr>
+            <tr><td><code>ticks</code></td><td data-i18n="shell.c2">Print timer tick counter</td></tr>
+            <tr><td><code>ps</code></td><td data-i18n="shell.c3">Task table: ID, PRIO, STATE, WAIT, WAKE_AT</td></tr>
+            <tr><td><code>sleep N</code></td><td data-i18n="shell.c4">Block for N timer ticks, then print woke up</td></tr>
+            <tr><td><code>mem</code></td><td data-i18n="shell.c5">Frame allocator stats + heap KiB</td></tr>
+            <tr><td><code>clear</code></td><td data-i18n="shell.c6">Print 50 newlines</td></tr>
+            <tr><td><code>say &lt;text&gt;</code></td><td data-i18n="shell.c7">Echo text to serial</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- STRUCTURE -->
+      <section id="structure">
+        <h2 data-i18n="struct.title">Project Structure</h2>
+        <div class="file-tree">
+<span class="dir">flynn_os/</span>
+├── <span class="file">Cargo.toml</span>          <span class="comment"># workspace: host + kernel artifact</span>
+├── <span class="file">build.rs</span>              <span class="comment"># bios.img / uefi.img generation</span>
+├── <span class="file">src/main.rs</span>           <span class="comment"># QEMU launcher</span>
+├── <span class="file">architecture.md</span>     <span class="comment"># phase status (source of truth)</span>
+└── <span class="dir">kernel/src/</span>
+    ├── <span class="file">main.rs</span>           <span class="comment"># kernel entry, init chain</span>
+    ├── <span class="dir">memory/</span>         <span class="comment"># paging, heap, frames, stacks</span>
+    ├── <span class="dir">interrupts/</span>     <span class="comment"># IDT, PIC, PIT, keyboard</span>
+    ├── <span class="dir">task/</span>           <span class="comment"># scheduler, preempt, context</span>
+    ├── <span class="dir">input/</span>          <span class="comment"># terminal, scancode mapping</span>
+    ├── <span class="dir">shell/</span>          <span class="comment"># command handlers</span>
+    └── <span class="dir">driver/</span>         <span class="comment"># serial COM1</span>
+        </div>
+      </section>
+
+      <!-- ROADMAP -->
+      <section id="roadmap">
+        <h2 data-i18n="road.title">Development Roadmap</h2>
+        <p data-i18n="road.desc">Phased kernel evolution. Click a phase for details. Source of truth: architecture.md</p>
+        <div class="roadmap" id="roadmap"></div>
+      </section>
+
+      <!-- TECH -->
+      <section id="tech">
+        <h2 data-i18n="tech.title">Tech Stack</h2>
+        <table>
+          <thead>
+            <tr>
+              <th data-i18n="tech.col.cat">Category</th>
+              <th data-i18n="tech.col.tech">Technology</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td data-i18n="tech.lang">Language</td><td>Rust nightly (<code>abi_x86_interrupt</code>)</td></tr>
+            <tr><td data-i18n="tech.target">Target</td><td><code>x86_64-unknown-none</code> (bare metal)</td></tr>
+            <tr><td data-i18n="tech.boot">Boot</td><td>rust-osdev/bootloader 0.11, bootloader_api 0.11</td></tr>
+            <tr><td data-i18n="tech.qemu">Emulation</td><td>QEMU (<code>qemu-system-x86_64</code>, 512M RAM)</td></tr>
+            <tr><td data-i18n="tech.cpu">CPU</td><td>x86_64 long mode, IDT, PIC 8259, PIT</td></tr>
+            <tr><td data-i18n="tech.mem">Memory</td><td>x86_64 crate, linked_list_allocator, bitmap frames</td></tr>
+            <tr><td data-i18n="tech.sync">Concurrency</td><td>Custom scheduler, spin mutex, heapless SPSC queue</td></tr>
+            <tr><td data-i18n="tech.io">I/O</td><td>Serial COM1, PS/2 keyboard, GOP framebuffer (marker)</td></tr>
+          </tbody>
+        </table>
+
+        <h3 data-i18n="tech.aliases">Cargo aliases</h3>
+        <pre><span class="tag">cargo build-kernel</span>  <span class="comment"># build kernel only</span>
+<span class="tag">cargo run</span>           <span class="comment"># BIOS boot (default)</span>
+<span class="tag">cargo run -- uefi</span>   <span class="comment"># UEFI boot</span></pre>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const T = {
+      en: {
+        "nav.overview": "Overview",
+        "nav.intro": "Introduction",
+        "nav.quickstart": "Quick Start",
+        "nav.architecture": "Architecture",
+        "nav.internals": "Internals",
+        "nav.boot": "Boot Sequence",
+        "nav.memory": "Memory",
+        "nav.interrupts": "Interrupts",
+        "nav.scheduler": "Scheduler",
+        "nav.shell": "Input & Shell",
+        "nav.reference": "Reference",
+        "nav.structure": "Project Structure",
+        "nav.roadmap": "Roadmap",
+        "nav.tech": "Tech Stack",
+        "intro.title": "Flynn OS",
+        "intro.lead": "Experimental bare-metal x86_64 kernel written in Rust. Serial-first OS with preemptive kernel threads, priority scheduling, and block/wake I/O.",
+        "intro.status": "Current phase: Kernel threads + preemptive scheduler + block/wake. User processes (Ring 3) planned for Phase 5+.",
+        "intro.features": "Key capabilities",
+        "intro.col.feature": "Feature",
+        "intro.col.status": "Status",
+        "intro.f1": "Bare-metal boot (BIOS / UEFI)",
+        "intro.f2": "Paging, heap, frame allocator",
+        "intro.f3": "PIC, PIT timer, keyboard ISR",
+        "intro.f4": "Preemptive scheduler + aging",
+        "intro.f5": "Block/wake (sleep, keyboard)",
+        "intro.f6": "User processes, syscalls",
+        "badge.done": "Done",
+        "badge.planned": "Planned",
+        "qs.title": "Quick Start",
+        "qs.desc": "Flynn OS runs inside QEMU. Build the workspace and launch the BIOS image:",
+        "qs.output": "Expected output: memory map, frame allocator stats, heap init, interrupt setup, ASCII banner, then alternating worker output and shell prompt > .",
+        "qs.pass": "Pass criteria",
+        "qs.p1": "Memory map printed at boot",
+        "qs.p2": "Workers alternate: A:0 … B:done",
+        "qs.p3": "Shell prompt responsive",
+        "qs.p4": "help, ticks, sleep 50 → woke up",
+        "arch.title": "Architecture Overview",
+        "arch.desc": "Flynn OS has two layers: a host runner (std Rust) that builds and launches QEMU, and a no_std kernel that runs on bare metal. Click each layer to expand details.",
+        "arch.host.title": "Host Layer (std Rust)",
+        "arch.host.body": "Cargo workspace root. build.rs compiles the kernel binary and packages it into bios.img / uefi.img. src/main.rs launches qemu-system-x86_64 with -serial stdio — all kernel output goes to your terminal.",
+        "arch.boot.title": "Bootloader (rust-osdev 0.11)",
+        "arch.boot.body": "BIOS or UEFI boot loads the kernel ELF. Passes BootInfo: memory map, physical memory offset, optional GOP framebuffer. Sets up long mode and jumps to kernel_main.",
+        "arch.kernel.title": "Kernel (no_std, x86_64-unknown-none)",
+        "arch.kernel.body": "Core subsystems: memory (paging, heap, frames), interrupts (IDT, PIC, PIT, keyboard), task scheduler (preempt, priority, block/wake), serial driver, shell REPL. Minimal framebuffer marker as graphics PoC.",
+        "arch.dataflow": "Data flow",
+        "arch.flow1": "Keyboard: PS/2 IRQ → ISR enqueues scancode → SPSC queue → input_loop task → terminal line editor → shell command on Enter",
+        "arch.flow2": "Timer: PIT ~100 Hz → timer ISR increments ticks → on_timer_tick() → preempt flag / wake blocked tasks / aging",
+        "arch.flow3": "Output: All logging and shell I/O via COM1 serial port (0x3F8), forwarded by QEMU to host stdout",
+        "boot.title": "Boot Sequence",
+        "boot.desc": "Step through kernel initialization. Each step corresponds to log tags in serial output.",
+        "boot.play": "▶ Play",
+        "boot.reset": "Reset",
+        "mem.title": "Memory Layout",
+        "mem.desc": "Click a memory region to see details. Kernel uses fixed virtual addresses defined in layout.rs.",
+        "mem.frame.title": "Frame Allocator",
+        "mem.frame.desc": "Bitmap allocator over the largest usable RAM region (up to 128 MiB / 32768 frames). Boot self-test runs 64 allocate/free cycles. Task stacks use mapped frames — not heap allocation.",
+        "mem.col.component": "Component",
+        "mem.col.module": "Module",
+        "mem.m1": "Bitmap frame allocator",
+        "mem.m2": "Page table mapping",
+        "mem.m3": "Heap (linked_list_allocator)",
+        "mem.m4": "Mapped task stacks",
+        "irq.title": "Interrupts & Drivers",
+        "irq.desc": "8259 PIC remapped (IRQ0=32 timer, IRQ1=33 keyboard). PIT configured for ~100 Hz. IDT loaded, then sti enables interrupts.",
+        "irq.col.irq": "IRQ",
+        "irq.col.source": "Source",
+        "irq.col.handler": "Handler action",
+        "irq.timer.src": "PIT Timer",
+        "irq.timer.act": "Increment ticks, notify scheduler (preempt, wake, aging)",
+        "irq.kbd.src": "PS/2 Keyboard",
+        "irq.kbd.act": "Read scancode, enqueue to SPSC queue, wake keyboard waiter",
+        "irq.serial.title": "Serial Driver",
+        "irq.serial.desc": "COM1 at port 0x3F8, 38400 baud. Logger, shell, and all user-facing output go through serial. QEMU maps this to host stdout via -serial stdio.",
+        "sched.title": "Task Scheduler",
+        "sched.desc": "Preemptive scheduler with 4 priority levels (0=idle, 3=highest). Timer sets preempt flag; tasks check at safe points. Click a state to learn more.",
+        "sched.params": "Parameters",
+        "sched.col.param": "Parameter",
+        "sched.col.value": "Value",
+        "sched.col.meaning": "Meaning",
+        "sched.q.desc": "Time slice (~20 ms at 100 Hz)",
+        "sched.a.desc": "Ready tasks boost priority after this many ticks",
+        "sched.p.desc": "Priority levels 0..3",
+        "sched.boot.title": "Boot tasks",
+        "sched.col.task": "Task",
+        "sched.col.prio": "Priority",
+        "sched.col.role": "Role",
+        "sched.t1": "Demo: prints A:0..4, sleeps, exits",
+        "sched.t2": "Demo: prints B:0..4, sleeps, exits",
+        "sched.t3": "Keyboard input or blocks on keyboard",
+        "sched.t4": "hlt + preempt check when nothing runs",
+        "sched.ctx.title": "Context switch",
+        "sched.ctx.desc": "Assembly switch_task saves/restores RSP only. Stack initialized via init_context with a synthetic return to task entry. Phase 2.1 will add true ISR context switch via iretq from timer ISR.",
+        "shell.title": "Input & Shell",
+        "shell.desc": "Serial REPL with prompt > . Keyboard scancodes converted to ASCII in terminal.rs. Try commands in the demo terminal below.",
+        "shell.cmds": "Commands",
+        "shell.col.cmd": "Command",
+        "shell.col.desc": "Description",
+        "shell.c1": "List available commands",
+        "shell.c2": "Print timer tick counter",
+        "shell.c3": "Task table: ID, PRIO, STATE, WAIT, WAKE_AT",
+        "shell.c4": "Block for N timer ticks, then print woke up",
+        "shell.c5": "Frame allocator stats + heap KiB",
+        "shell.c6": "Print 50 newlines",
+        "shell.c7": "Echo text to serial",
+        "struct.title": "Project Structure",
+        "road.title": "Development Roadmap",
+        "road.desc": "Phased kernel evolution. Click a phase for details. Source of truth: architecture.md",
+        "tech.title": "Tech Stack",
+        "tech.col.cat": "Category",
+        "tech.col.tech": "Technology",
+        "tech.lang": "Language",
+        "tech.target": "Target",
+        "tech.boot": "Boot",
+        "tech.qemu": "Emulation",
+        "tech.cpu": "CPU",
+        "tech.mem": "Memory",
+        "tech.sync": "Concurrency",
+        "tech.io": "I/O",
+        "tech.aliases": "Cargo aliases",
+        bootSteps: [
+          { label: "Logger init", log: "[boot] memory map received\n[mem] probe frame at 0x..." },
+          { label: "Memory map", log: "Memory regions from BootInfo printed to serial" },
+          { label: "Frame allocator", log: "[mem] frames: total=... used=... free=...\n[mem] frame self-test ok (64 alloc/free cycles)" },
+          { label: "Paging + heap", log: "[paging] active page table initialized\n[heap] initialized at 0x444444440000 (1048576 bytes)\n[heap] Vec works (len=2, sum=3)" },
+          { label: "Interrupts", log: "[interrupts] timer + keyboard IRQ enabled" },
+          { label: "Banner + framebuffer", log: "ASCII Flynn OS banner\nFramebuffer: WxH (white 80×40 marker)" },
+          { label: "Spawn tasks", log: "[task] phase 0: frame bitmap + mapped stacks\nSpawn: worker_a, worker_b, input_loop, idle" },
+          { label: "Scheduler start", log: "> \nHi from kernel (serial)\nA:0 B:0 A:1 ..." }
+        ],
+        memRegions: [
+          { cls: "heap", addr: "0x4444_4444_0000", name: "Kernel Heap", size: "1 MiB", desc: "linked_list_allocator for Vec, scheduler state, dynamic structures." },
+          { cls: "stack", addr: "0xFFFF_A000_0000_0000 + slot×32KiB", name: "Task Stacks", size: "64 slots × 32 KiB", desc: "Mapped physical frames per task. Not allocated from heap — dedicated stack regions." },
+          { cls: "phys", addr: "Dynamic (phys_mem_offset)", name: "Physical Memory", size: "Up to 128 MiB tracked", desc: "OffsetPageTable maps physical frames via bootloader-provided offset. Frame bitmap tracks allocation." }
+        ],
+        states: [
+          { id: "ready", name: "Ready", desc: "Task is in priority queue, waiting for CPU time." },
+          { id: "running", name: "Running", desc: "Currently executing. Quantum counted down each timer tick." },
+          { id: "blocked", name: "Blocked", desc: "Waiting for event: sleep(ticks) until wake_at, or block_on_keyboard()." },
+          { id: "finished", name: "Finished", desc: "Task entry function returned. Removed from scheduling." }
+        ],
+        kbdFlow: [
+          { name: "PS/2 Keyboard", desc: "Hardware sends scancode on key press/release." },
+          { name: "IRQ1 ISR", desc: "keyboard_interrupt_handler reads port 0x60, enqueues scancode." },
+          { name: "SPSC Queue", desc: "Lock-free heapless queue between ISR and task context." },
+          { name: "input_loop", desc: "Task pops scancodes, calls process_keyboard_buffer()." },
+          { name: "terminal.rs", desc: "Line editing: backspace, echo, Enter triggers command." },
+          { name: "shell", desc: "Parses command string, dispatches to help/ticks/ps/sleep/mem/..." }
+        ],
+        phases: [
+          { id: "0", title: "Phase 0 — Frame Allocator", done: true, body: "Bitmap over largest usable RAM. allocate/deallocate frames. Boot self-test. Mapped stacks at high canonical addresses. Shell mem command." },
+          { id: "1", title: "Phase 1 — Kernel Threads", done: true, body: "Cooperative kernel threads. Context switch via switch_task. Lock-free keyboard buffer." },
+          { id: "2", title: "Phase 2 — Preemption", done: true, body: "Timer flag + safe-point preemption. Idle task with hlt. PreemptGuard for critical sections. ticks counter." },
+          { id: "3", title: "Phase 3 — Priority + Aging", done: true, body: "4-level priority ready queues. Aging prevents starvation. ps command shows task table." },
+          { id: "4", title: "Phase 4 — Block / Wake", done: true, body: "TaskState::Blocked, wake_at for sleep. block_on_keyboard(). Shell sleep N command." },
+          { id: "2.1", title: "Phase 2.1 — ISR Context Switch", done: false, body: "True preemptive switch: iretq resume from timer ISR instead of flag + safe point." },
+          { id: "5", title: "Phase 5–7 — Processes", done: false, body: "Per-process page tables, Ring 3 user mode, int 0x80 syscalls, exec, fork/COW, wait." }
+        ],
+        termHelp: "mem — frame and heap usage\nticks — timer tick count\nps — task list\nsleep N — block N ticks\nclear — clear screen\nhelp — this message",
+        termPs: "ID PRIO STATE   WAIT WAKE_AT\n 1    1 Finished   0      -\n 2    1 Finished   0      -\n 3    2 Running    0      -\n 4    0 Ready      0      -",
+        termMem: "frames: total=32768 used=5 free=32763\nheap:   used=12 KiB free=1012 KiB total=1024 KiB",
+        termSleep: (n) => `sleeping ${n} ticks...\nwoke up`,
+        termSay: (t) => t,
+        termTicks: () => `ticks: ${Math.floor(Math.random() * 500 + 100)}`
+      },
+      ru: {
+        "nav.overview": "Обзор",
+        "nav.intro": "Введение",
+        "nav.quickstart": "Быстрый старт",
+        "nav.architecture": "Архитектура",
+        "nav.internals": "Внутренности",
+        "nav.boot": "Последовательность загрузки",
+        "nav.memory": "Память",
+        "nav.interrupts": "Прерывания",
+        "nav.scheduler": "Планировщик",
+        "nav.shell": "Ввод и Shell",
+        "nav.reference": "Справочник",
+        "nav.structure": "Структура проекта",
+        "nav.roadmap": "Дорожная карта",
+        "nav.tech": "Стек технологий",
+        "intro.title": "Flynn OS",
+        "intro.lead": "Экспериментальное bare-metal ядро x86_64 на Rust. Serial-first ОС с вытесняющим планировщиком потоков ядра, приоритетами и block/wake I/O.",
+        "intro.status": "Текущая фаза: потоки ядра + вытесняющий планировщик + block/wake. Пользовательские процессы (Ring 3) запланированы в Phase 5+.",
+        "intro.features": "Ключевые возможности",
+        "intro.col.feature": "Возможность",
+        "intro.col.status": "Статус",
+        "intro.f1": "Bare-metal загрузка (BIOS / UEFI)",
+        "intro.f2": "Paging, heap, frame allocator",
+        "intro.f3": "PIC, PIT таймер, keyboard ISR",
+        "intro.f4": "Вытесняющий планировщик + aging",
+        "intro.f5": "Block/wake (sleep, клавиатура)",
+        "intro.f6": "Пользовательские процессы, syscalls",
+        "badge.done": "Готово",
+        "badge.planned": "В планах",
+        "qs.title": "Быстрый старт",
+        "qs.desc": "Flynn OS запускается в QEMU. Соберите workspace и запустите BIOS-образ:",
+        "qs.output": "Ожидаемый вывод: карта памяти, статистика frame allocator, инициализация heap, настройка прерываний, ASCII-баннер, затем чередование worker-ов и приглашение shell > .",
+        "qs.pass": "Критерии успешного запуска",
+        "qs.p1": "Карта памяти выводится при загрузке",
+        "qs.p2": "Workers чередуются: A:0 … B:done",
+        "qs.p3": "Приглашение shell отзывается",
+        "qs.p4": "help, ticks, sleep 50 → woke up",
+        "arch.title": "Обзор архитектуры",
+        "arch.desc": "Flynn OS состоит из двух слоёв: host-раннер (std Rust), который собирает и запускает QEMU, и no_std ядро на bare metal. Нажмите на слой для подробностей.",
+        "arch.host.title": "Host-слой (std Rust)",
+        "arch.host.body": "Корень Cargo workspace. build.rs компилирует бинарник ядра и упаковывает в bios.img / uefi.img. src/main.rs запускает qemu-system-x86_64 с -serial stdio — весь вывод ядра идёт в терминал.",
+        "arch.boot.title": "Bootloader (rust-osdev 0.11)",
+        "arch.boot.body": "BIOS или UEFI загружает ELF ядра. Передаёт BootInfo: карту памяти, physical memory offset, опциональный GOP framebuffer. Настраивает long mode и переходит в kernel_main.",
+        "arch.kernel.title": "Ядро (no_std, x86_64-unknown-none)",
+        "arch.kernel.body": "Основные подсистемы: memory (paging, heap, frames), interrupts (IDT, PIC, PIT, keyboard), планировщик задач (preempt, priority, block/wake), serial-драйвер, shell REPL. Минимальный маркер на framebuffer как PoC графики.",
+        "arch.dataflow": "Потоки данных",
+        "arch.flow1": "Клавиатура: PS/2 IRQ → ISR кладёт scancode в очередь → SPSC queue → задача input_loop → редактор строки → команда shell по Enter",
+        "arch.flow2": "Таймер: PIT ~100 Hz → timer ISR увеличивает ticks → on_timer_tick() → флаг preempt / пробуждение blocked / aging",
+        "arch.flow3": "Вывод: все логи и shell I/O через COM1 serial (0x3F8), QEMU перенаправляет в stdout хоста",
+        "boot.title": "Последовательность загрузки",
+        "boot.desc": "Пошаговая инициализация ядра. Каждый шаг соответствует тегам в serial-выводе.",
+        "boot.play": "▶ Воспроизвести",
+        "boot.reset": "Сброс",
+        "mem.title": "Карта памяти",
+        "mem.desc": "Нажмите на регион памяти для подробностей. Ядро использует фиксированные виртуальные адреса из layout.rs.",
+        "mem.frame.title": "Frame Allocator",
+        "mem.frame.desc": "Bitmap-аллокатор по крупнейшему usable региону RAM (до 128 MiB / 32768 frames). Self-test при загрузке: 64 цикла alloc/free. Стеки задач — mapped frames, не heap.",
+        "mem.col.component": "Компонент",
+        "mem.col.module": "Модуль",
+        "mem.m1": "Bitmap frame allocator",
+        "mem.m2": "Маппинг page table",
+        "mem.m3": "Heap (linked_list_allocator)",
+        "mem.m4": "Mapped стеки задач",
+        "irq.title": "Прерывания и драйверы",
+        "irq.desc": "8259 PIC перемаплен (IRQ0=32 таймер, IRQ1=33 клавиатура). PIT настроен на ~100 Hz. IDT загружена, sti включает прерывания.",
+        "irq.col.irq": "IRQ",
+        "irq.col.source": "Источник",
+        "irq.col.handler": "Действие обработчика",
+        "irq.timer.src": "PIT Timer",
+        "irq.timer.act": "Инкремент ticks, уведомление планировщика (preempt, wake, aging)",
+        "irq.kbd.src": "PS/2 Keyboard",
+        "irq.kbd.act": "Чтение scancode, enqueue в SPSC, пробуждение keyboard waiter",
+        "irq.serial.title": "Serial-драйвер",
+        "irq.serial.desc": "COM1 на порту 0x3F8, 38400 baud. Logger, shell и весь пользовательский вывод через serial. QEMU мапит в stdout через -serial stdio.",
+        "sched.title": "Планировщик задач",
+        "sched.desc": "Вытесняющий планировщик с 4 уровнями приоритета (0=idle, 3=макс.). Таймер ставит флаг preempt; задачи проверяют в safe points. Нажмите на состояние.",
+        "sched.params": "Параметры",
+        "sched.col.param": "Параметр",
+        "sched.col.value": "Значение",
+        "sched.col.meaning": "Смысл",
+        "sched.q.desc": "Квант времени (~20 мс при 100 Hz)",
+        "sched.a.desc": "Ready-задачи повышают приоритет после стольких ticks",
+        "sched.p.desc": "Уровни приоритета 0..3",
+        "sched.boot.title": "Задачи при загрузке",
+        "sched.col.task": "Задача",
+        "sched.col.prio": "Приоритет",
+        "sched.col.role": "Роль",
+        "sched.t1": "Демо: печатает A:0..4, sleep, завершается",
+        "sched.t2": "Демо: печатает B:0..4, sleep, завершается",
+        "sched.t3": "Ввод с клавиатуры или блокировка на keyboard",
+        "sched.t4": "hlt + проверка preempt когда нечего выполнять",
+        "sched.ctx.title": "Context switch",
+        "sched.ctx.desc": "Assembly switch_task сохраняет/восстанавливает только RSP. Стек инициализируется через init_context с синтетическим return в entry задачи. Phase 2.1 добавит настоящий ISR switch через iretq из timer ISR.",
+        "shell.title": "Ввод и Shell",
+        "shell.desc": "Serial REPL с приглашением > . Scancode клавиатуры конвертируются в ASCII в terminal.rs. Попробуйте команды в демо-терминале ниже.",
+        "shell.cmds": "Команды",
+        "shell.col.cmd": "Команда",
+        "shell.col.desc": "Описание",
+        "shell.c1": "Список доступных команд",
+        "shell.c2": "Счётчик timer ticks",
+        "shell.c3": "Таблица задач: ID, PRIO, STATE, WAIT, WAKE_AT",
+        "shell.c4": "Блокировка на N ticks, затем woke up",
+        "shell.c5": "Статистика frame allocator + heap KiB",
+        "shell.c6": "50 переводов строки",
+        "shell.c7": "Echo текста в serial",
+        "struct.title": "Структура проекта",
+        "road.title": "Дорожная карта разработки",
+        "road.desc": "Поэтапная эволюция ядра. Нажмите на фазу для подробностей. Источник истины: architecture.md",
+        "tech.title": "Стек технологий",
+        "tech.col.cat": "Категория",
+        "tech.col.tech": "Технология",
+        "tech.lang": "Язык",
+        "tech.target": "Target",
+        "tech.boot": "Загрузка",
+        "tech.qemu": "Эмуляция",
+        "tech.cpu": "CPU",
+        "tech.mem": "Память",
+        "tech.sync": "Concurrency",
+        "tech.io": "I/O",
+        "tech.aliases": "Cargo aliases",
+        bootSteps: [
+          { label: "Инициализация Logger", log: "[boot] memory map received\n[mem] probe frame at 0x..." },
+          { label: "Карта памяти", log: "Memory regions из BootInfo выводятся в serial" },
+          { label: "Frame allocator", log: "[mem] frames: total=... used=... free=...\n[mem] frame self-test ok (64 alloc/free cycles)" },
+          { label: "Paging + heap", log: "[paging] active page table initialized\n[heap] initialized at 0x444444440000 (1048576 bytes)\n[heap] Vec works (len=2, sum=3)" },
+          { label: "Прерывания", log: "[interrupts] timer + keyboard IRQ enabled" },
+          { label: "Баннер + framebuffer", log: "ASCII-баннер Flynn OS\nFramebuffer: WxH (белый маркер 80×40)" },
+          { label: "Spawn задач", log: "[task] phase 0: frame bitmap + mapped stacks\nSpawn: worker_a, worker_b, input_loop, idle" },
+          { label: "Старт планировщика", log: "> \nHi from kernel (serial)\nA:0 B:0 A:1 ..." }
+        ],
+        memRegions: [
+          { cls: "heap", addr: "0x4444_4444_0000", name: "Kernel Heap", size: "1 MiB", desc: "linked_list_allocator для Vec, состояния планировщика, динамических структур." },
+          { cls: "stack", addr: "0xFFFF_A000_0000_0000 + slot×32KiB", name: "Стеки задач", size: "64 слота × 32 KiB", desc: "Mapped physical frames на задачу. Не из heap — выделенные регионы стеков." },
+          { cls: "phys", addr: "Dynamic (phys_mem_offset)", name: "Физическая память", size: "До 128 MiB отслеживается", desc: "OffsetPageTable мапит физические frames через offset от bootloader. Bitmap отслеживает аллокации." }
+        ],
+        states: [
+          { id: "ready", name: "Ready", desc: "Задача в очереди приоритетов, ждёт CPU." },
+          { id: "running", name: "Running", desc: "Сейчас выполняется. Quantum уменьшается каждый timer tick." },
+          { id: "blocked", name: "Blocked", desc: "Ждёт событие: sleep(ticks) до wake_at, или block_on_keyboard()." },
+          { id: "finished", name: "Finished", desc: "Entry-функция задачи вернулась. Убрана из планирования." }
+        ],
+        kbdFlow: [
+          { name: "PS/2 Keyboard", desc: "Железо отправляет scancode при нажатии/отпускании." },
+          { name: "IRQ1 ISR", desc: "keyboard_interrupt_handler читает порт 0x60, кладёт scancode в очередь." },
+          { name: "SPSC Queue", desc: "Lock-free heapless очередь между ISR и контекстом задачи." },
+          { name: "input_loop", desc: "Задача забирает scancode, вызывает process_keyboard_buffer()." },
+          { name: "terminal.rs", desc: "Редактирование строки: backspace, echo, Enter запускает команду." },
+          { name: "shell", desc: "Парсит строку, вызывает help/ticks/ps/sleep/mem/..." }
+        ],
+        phases: [
+          { id: "0", title: "Phase 0 — Frame Allocator", done: true, body: "Bitmap по крупнейшему usable RAM. allocate/deallocate frames. Self-test при загрузке. Mapped stacks по высоким каноническим адресам. Команда shell mem." },
+          { id: "1", title: "Phase 1 — Kernel Threads", done: true, body: "Кооперативные потоки ядра. Context switch через switch_task. Lock-free keyboard buffer." },
+          { id: "2", title: "Phase 2 — Preemption", done: true, body: "Timer flag + safe-point preemption. Idle task с hlt. PreemptGuard для критических секций. Счётчик ticks." },
+          { id: "3", title: "Phase 3 — Priority + Aging", done: true, body: "4-уровневые priority ready queues. Aging против starvation. Команда ps." },
+          { id: "4", title: "Phase 4 — Block / Wake", done: true, body: "TaskState::Blocked, wake_at для sleep. block_on_keyboard(). Команда shell sleep N." },
+          { id: "2.1", title: "Phase 2.1 — ISR Context Switch", done: false, body: "Настоящий вытесняющий switch: iretq resume из timer ISR вместо flag + safe point." },
+          { id: "5", title: "Phase 5–7 — Processes", done: false, body: "Page tables на процесс, Ring 3, syscalls int 0x80, exec, fork/COW, wait." }
+        ],
+        termHelp: "mem — frame и heap usage\nticks — счётчик timer ticks\nps — список задач\nsleep N — блокировка N ticks\nclear — очистка экрана\nhelp — это сообщение",
+        termPs: "ID PRIO STATE   WAIT WAKE_AT\n 1    1 Finished   0      -\n 2    1 Finished   0      -\n 3    2 Running    0      -\n 4    0 Ready      0      -",
+        termMem: "frames: total=32768 used=5 free=32763\nheap:   used=12 KiB free=1012 KiB total=1024 KiB",
+        termSleep: (n) => `sleeping ${n} ticks...\nwoke up`,
+        termSay: (t) => t,
+        termTicks: () => `ticks: ${Math.floor(Math.random() * 500 + 100)}`
+      }
+    };
+
+    let lang = localStorage.getItem("flynn-docs-lang") || "en";
+    let bootStep = 0;
+    let bootTimer = null;
+    let activeState = "ready";
+    let activeKbdStep = 0;
+
+    function t(key) {
+      const v = T[lang][key];
+      return typeof v === "string" ? v : key;
+    }
+
+    function applyLang() {
+      document.documentElement.lang = lang;
+      document.querySelectorAll("[data-i18n]").forEach(el => {
+        const key = el.getAttribute("data-i18n");
+        const val = T[lang][key];
+        if (typeof val === "string") {
+          if (val.includes("<strong>") || val.includes("<code>")) {
+            el.innerHTML = val;
+          } else {
+            el.textContent = val;
+          }
+        }
+      });
+      document.querySelectorAll(".lang-btn").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.lang === lang);
+      });
+      renderBootTimeline();
+      renderMemMap();
+      renderStateMachine();
+      renderKbdFlow();
+      renderRoadmap();
+      renderCmdBtns();
+      updateStateDesc();
+      updateKbdDesc();
+      localStorage.setItem("flynn-docs-lang", lang);
+    }
+
+    function renderBootTimeline() {
+      const container = document.getElementById("bootTimeline");
+      container.innerHTML = T[lang].bootSteps.map((s, i) =>
+        `<div class="timeline-step${i < bootStep ? ' done' : ''}${i === bootStep ? ' active' : ''}" data-step="${i}">
+          <div class="timeline-label">${s.label}</div>
+        </div>`
+      ).join("");
+      container.querySelectorAll(".timeline-step").forEach(el => {
+        el.addEventListener("click", () => {
+          bootStep = +el.dataset.step;
+          updateBootDetail();
+          renderBootTimeline();
+        });
+      });
+      updateBootDetail();
+    }
+
+    function updateBootDetail() {
+      const detail = document.getElementById("bootDetail");
+      detail.textContent = T[lang].bootSteps[bootStep]?.log || "";
+    }
+
+    function renderMemMap() {
+      const container = document.getElementById("memMap");
+      container.innerHTML = T[lang].memRegions.map((r, i) =>
+        `<div class="mem-region" data-idx="${i}">
+          <div class="mem-bar ${r.cls}"></div>
+          <div class="mem-info">
+            <div class="mem-addr">${r.addr} · ${r.size}</div>
+            <div class="mem-name">${r.name}</div>
+            <div class="mem-desc">${r.desc}</div>
+          </div>
+        </div>`
+      ).join("");
+      container.querySelectorAll(".mem-region").forEach(el => {
+        el.addEventListener("click", () => {
+          container.querySelectorAll(".mem-region").forEach(r => r.classList.remove("selected"));
+          el.classList.add("selected");
+        });
+      });
+    }
+
+    function renderStateMachine() {
+      const container = document.getElementById("stateMachine");
+      container.innerHTML = T[lang].states.map(s =>
+        `<div class="state-node${s.id === activeState ? ' active' : ''}" data-state="${s.id}">${s.name}</div>`
+      ).join("");
+      container.querySelectorAll(".state-node").forEach(el => {
+        el.addEventListener("click", () => {
+          activeState = el.dataset.state;
+          renderStateMachine();
+          updateStateDesc();
+        });
+      });
+    }
+
+    function updateStateDesc() {
+      const s = T[lang].states.find(x => x.id === activeState);
+      document.getElementById("stateDesc").textContent = s ? `${s.name}: ${s.desc}` : "";
+    }
+
+    function renderKbdFlow() {
+      const container = document.getElementById("kbdFlow");
+      const steps = T[lang].kbdFlow;
+      container.innerHTML = steps.map((s, i) =>
+        `${i > 0 ? '<span class="flow-arrow">→</span>' : ''}<div class="flow-step${i === activeKbdStep ? ' active' : ''}" data-kbd="${i}">${s.name}</div>`
+      ).join("");
+      container.querySelectorAll(".flow-step").forEach(el => {
+        el.addEventListener("click", () => {
+          activeKbdStep = +el.dataset.kbd;
+          renderKbdFlow();
+          updateKbdDesc();
+        });
+      });
+    }
+
+    function updateKbdDesc() {
+      const s = T[lang].kbdFlow[activeKbdStep];
+      document.getElementById("kbdFlowDesc").textContent = s ? s.desc : "";
+    }
+
+    function renderRoadmap() {
+      const container = document.getElementById("roadmap");
+      container.innerHTML = T[lang].phases.map(p =>
+        `<div class="phase-card" data-phase="${p.id}">
+          <div class="phase-header">
+            <span class="phase-title">${p.title}</span>
+            <span class="badge ${p.done ? 'badge-done' : 'badge-planned'}">${p.done ? t("badge.done") : t("badge.planned")}</span>
+          </div>
+          <div class="phase-body">${p.body}</div>
+        </div>`
+      ).join("");
+      container.querySelectorAll(".phase-card").forEach(el => {
+        el.addEventListener("click", () => el.classList.toggle("open"));
+      });
+    }
+
+    function renderCmdBtns() {
+      const cmds = ["help", "ticks", "ps", "mem", "sleep 10", "say hello", "clear"];
+      const container = document.getElementById("cmdBtns");
+      container.innerHTML = cmds.map(c => `<button class="btn" data-cmd="${c}">${c}</button>`).join("");
+      container.querySelectorAll(".btn").forEach(btn => {
+        btn.addEventListener("click", () => runTermCmd(btn.dataset.cmd));
+      });
+    }
+
+    function runTermCmd(cmd) {
+      const out = document.getElementById("termOutput");
+      const input = document.getElementById("termInput");
+      input.textContent = cmd;
+      setTimeout(() => {
+        let response = "";
+        const parts = cmd.split(" ");
+        switch (parts[0]) {
+          case "help": response = T[lang].termHelp; break;
+          case "ticks": response = T[lang].termTicks(); break;
+          case "ps": response = T[lang].termPs; break;
+          case "mem": response = T[lang].termMem; break;
+          case "sleep": response = T[lang].termSleep(parseInt(parts[1]) || 10); break;
+          case "say": response = T[lang].termSay(parts.slice(1).join(" ") || "hello"); break;
+          case "clear": out.innerHTML = ""; input.textContent = ""; return;
+        }
+        out.innerHTML += `<div><span class="prompt">&gt; </span>${cmd}</div><div>${response.replace(/\n/g, "<br>")}</div>`;
+        input.textContent = "";
+        document.getElementById("terminal").scrollTop = document.getElementById("terminal").scrollHeight;
+      }, 300);
+    }
+
+    // Arch layers toggle
+    document.querySelectorAll(".arch-layer").forEach(layer => {
+      layer.addEventListener("click", () => layer.classList.toggle("expanded"));
+    });
+
+    // Boot play
+    document.getElementById("bootPlay").addEventListener("click", () => {
+      if (bootTimer) return;
+      bootStep = 0;
+      renderBootTimeline();
+      bootTimer = setInterval(() => {
+        bootStep++;
+        if (bootStep >= T[lang].bootSteps.length) {
+          clearInterval(bootTimer);
+          bootTimer = null;
+        }
+        renderBootTimeline();
+      }, 900);
+    });
+
+    document.getElementById("bootReset").addEventListener("click", () => {
+      if (bootTimer) { clearInterval(bootTimer); bootTimer = null; }
+      bootStep = 0;
+      renderBootTimeline();
+    });
+
+    // Language switch
+    document.querySelectorAll(".lang-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        lang = btn.dataset.lang;
+        applyLang();
+      });
+    });
+
+    // Sidebar active link on scroll
+    const sections = document.querySelectorAll("section[id]");
+    const navLinks = document.querySelectorAll("nav.sidebar a");
+
+    function updateActiveNav() {
+      let current = "";
+      sections.forEach(sec => {
+        if (window.scrollY >= sec.offsetTop - 120) current = sec.id;
+      });
+      navLinks.forEach(link => {
+        link.classList.toggle("active", link.getAttribute("href") === "#" + current);
+      });
+    }
+
+    window.addEventListener("scroll", updateActiveNav);
+
+    navLinks.forEach(link => {
+      link.addEventListener("click", () => {
+        document.getElementById("sidebar").classList.remove("open");
+      });
+    });
+
+    document.getElementById("menuToggle").addEventListener("click", () => {
+      document.getElementById("sidebar").classList.toggle("open");
+    });
+
+    // Init
+    applyLang();
+    updateActiveNav();
+  </script>
+  <style>@keyframes blink { 50% { opacity: 0; } }</style>
+</body>
+</html>
