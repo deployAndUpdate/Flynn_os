@@ -114,6 +114,17 @@ impl Scheduler {
         }
     }
 
+    fn peek_highest_ready(&self) -> Option<usize> {
+        for level in (0..MAX_PRIORITY).rev() {
+            for &idx in &self.ready[level] {
+                if self.tasks[idx].state == TaskState::Ready {
+                    return Some(idx);
+                }
+            }
+        }
+        None
+    }
+
     fn pop_highest_ready(&mut self) -> Option<usize> {
         for level in (0..MAX_PRIORITY).rev() {
             while let Some(idx) = self.ready[level].pop_front() {
@@ -189,6 +200,7 @@ impl Scheduler {
     }
 
     fn block_current_sleep(&mut self, wake_at: u64) {
+        x86_64::instructions::interrupts::disable();
         let idx = self.current.expect("sleep without current task");
         self.tasks[idx].state = TaskState::Blocked;
         self.tasks[idx].wake_at = Some(wake_at);
@@ -200,6 +212,7 @@ impl Scheduler {
             return;
         }
 
+        x86_64::instructions::interrupts::disable();
         let idx = self
             .current
             .expect("block_on_keyboard without current task");
@@ -232,6 +245,7 @@ impl Scheduler {
     }
 
     fn finish_current(&mut self) {
+        x86_64::instructions::interrupts::disable();
         if let Some(idx) = self.current {
             let id = self.tasks[idx].id;
             self.tasks[idx].state = TaskState::Finished;
@@ -245,6 +259,10 @@ impl Scheduler {
     }
 
     fn schedule_next(&mut self) {
+        // Disable IRQ while updating `current` and until the stack switch completes.
+        // PreemptGuard cannot be used here — it would stay on a blocked task's stack.
+        x86_64::instructions::interrupts::disable();
+
         let next_idx = if self.started {
             self.pop_highest_ready()
         } else {
@@ -255,7 +273,9 @@ impl Scheduler {
             let mut logger = Logger;
             let _ = writeln!(logger, "[task] no runnable tasks — halt");
             loop {
+                x86_64::instructions::interrupts::enable();
                 x86_64::instructions::hlt();
+                x86_64::instructions::interrupts::disable();
             }
         };
 
@@ -264,6 +284,7 @@ impl Scheduler {
         if prev_idx == Some(next_idx) {
             self.tasks[next_idx].state = TaskState::Running;
             self.tasks[next_idx].wait_ticks = 0;
+            x86_64::instructions::interrupts::enable();
             return;
         }
 
@@ -300,21 +321,15 @@ impl Scheduler {
             return;
         }
 
-        self.enqueue_ready(current_idx);
-
-        let next_idx = match self.pop_highest_ready() {
-            Some(idx) => idx,
-            None => {
-                self.tasks[current_idx].state = TaskState::Running;
-                self.current = Some(current_idx);
-                return;
-            }
+        let Some(next_idx) = self.pop_highest_ready() else {
+            return;
         };
 
         if next_idx == current_idx {
-            self.tasks[current_idx].state = TaskState::Running;
             return;
         }
+
+        self.enqueue_ready(current_idx);
 
         let saved = save_preempt_frame(&self.tasks[current_idx].stack, frame);
         self.tasks[current_idx].context = saved;
@@ -343,6 +358,17 @@ impl Scheduler {
         }
         if self.active_count() <= 1 {
             return;
+        }
+
+        // A woken sleeper may outrank the running task (e.g. worker vs idle).
+        if let Some(current_idx) = self.current {
+            if let Some(ready_idx) = self.peek_highest_ready() {
+                if ready_idx != current_idx
+                    && self.tasks[ready_idx].priority > self.tasks[current_idx].priority
+                {
+                    self.quantum = 0;
+                }
+            }
         }
 
         self.quantum = self.quantum.saturating_sub(1);

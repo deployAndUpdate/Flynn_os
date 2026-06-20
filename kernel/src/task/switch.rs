@@ -8,26 +8,8 @@ global_asm!(
     .global switch_to
     .global first_task_run
 
-    // void switch_task(TaskContext* current, TaskContext* next)
-    // Voluntary switch from task context — RFLAGS (incl. IF) stay as-is; plain ret.
-    switch_task:
-        mov [rdi], rsp
-        mov byte ptr [rdi + 8], 0
-        mov rax, [rsi]
-        mov rsp, rax
-        cmp byte ptr [rsi + 8], 0
-        je 1f
-        iretq
-    1:  ret
-
-    // void switch_to(TaskContext* next) — called from timer ISR; must iretq into task.
-    switch_to:
-        mov rax, [rdi]
-        mov rsp, rax
-        cmp byte ptr [rdi + 8], 0
-        je 2f
-        iretq
-    2:  // Voluntary slot: [rsp] = return address → build synthetic interrupt frame.
+    // Voluntary slot: [rsp] = return address → synthetic iretq frame (IF=1 atomically).
+    .macro voluntary_iretq
         pop rcx
         mov rdx, rsp
         xor eax, eax
@@ -43,15 +25,36 @@ global_asm!(
         push rax
         push rcx
         iretq
+    .endm
 
-    // void first_task_run(TaskContext* next) — bootstrap from kernel with IF=1.
+    // void switch_task(TaskContext* current, TaskContext* next)
+    switch_task:
+        mov [rdi], rsp
+        mov byte ptr [rdi + 8], 0
+        mov rax, [rsi]
+        mov rsp, rax
+        cmp byte ptr [rsi + 8], 0
+        je 1f
+        iretq
+    1:  voluntary_iretq
+
+    // void switch_to(TaskContext* next) — called from timer ISR; must iretq into task.
+    switch_to:
+        mov rax, [rdi]
+        mov rsp, rax
+        cmp byte ptr [rdi + 8], 0
+        je 2f
+        iretq
+    2:  voluntary_iretq
+
+    // void first_task_run(TaskContext* next) — bootstrap from kernel.
     first_task_run:
         mov rax, [rdi]
         mov rsp, rax
         cmp byte ptr [rdi + 8], 0
         je 3f
         iretq
-    3:  ret
+    3:  voluntary_iretq
     "#
 );
 
