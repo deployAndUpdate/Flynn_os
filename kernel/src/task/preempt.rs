@@ -1,7 +1,9 @@
-use core::sync::atomic::{AtomicU32, AtomicU64, Ordering};
+use core::sync::atomic::{AtomicU32, AtomicU64, AtomicUsize, Ordering};
 
 static PREEMPT_DEPTH: AtomicU32 = AtomicU32::new(0);
 static ISR_PREEMPT_COUNT: AtomicU64 = AtomicU64::new(0);
+/// Running task index — updated before every context switch (visible even if `current` is stale).
+static ACTIVE_TASK: AtomicUsize = AtomicUsize::new(usize::MAX);
 
 pub struct PreemptGuard;
 
@@ -28,4 +30,15 @@ pub fn record_isr_preempt() {
 
 pub fn isr_preempt_count() -> u64 {
     ISR_PREEMPT_COUNT.load(Ordering::SeqCst)
+}
+
+pub fn set_active_task(idx: usize) {
+    ACTIVE_TASK.store(idx, Ordering::SeqCst);
+}
+
+pub fn active_task() -> Option<usize> {
+    match ACTIVE_TASK.load(Ordering::SeqCst) {
+        usize::MAX => None,
+        idx => Some(idx),
+    }
 }

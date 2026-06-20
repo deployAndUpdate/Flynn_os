@@ -3,14 +3,24 @@ use spin::Mutex;
 
 use crate::driver::serial::SerialPort;
 use crate::input::keyboard::scancode_to_ascii;
-use crate::interrupts::keyboard::pop_scancode;
+use crate::interrupts::keyboard::{flush_scancode_queue, pop_scancode};
 use crate::task::PreemptGuard;
 
 const SC_BACKSPACE: u8 = 0x0E;
 const SC_ENTER: u8 = 0x1C;
+const SC_EXTENDED: u8 = 0xE0;
 const CMD_MAX: usize = 128;
 
 static INPUT_LINE: Mutex<String> = Mutex::new(String::new());
+
+/// Show the shell prompt once demo workers are done.
+///
+/// Clears spurious scancodes and any partial line typed during boot churn.
+pub fn show_shell_prompt() {
+    flush_scancode_queue();
+    INPUT_LINE.lock().clear();
+    SerialPort::write_str_no_preempt("\n> ");
+}
 
 /// Drain available scancodes. Returns `true` if at least one key was processed.
 ///
@@ -20,6 +30,9 @@ pub fn process_keyboard_buffer() -> bool {
 
     while let Some(scancode) = pop_scancode() {
         processed = true;
+        if scancode == SC_EXTENDED {
+            continue;
+        }
         if scancode & 0x80 != 0 {
             continue;
         }

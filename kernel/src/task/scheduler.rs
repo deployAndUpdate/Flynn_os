@@ -201,7 +201,7 @@ impl Scheduler {
 
     fn block_current_sleep(&mut self, wake_at: u64) {
         x86_64::instructions::interrupts::disable();
-        let idx = self.current.expect("sleep without current task");
+        let idx = self.running_task_index();
         self.tasks[idx].state = TaskState::Blocked;
         self.tasks[idx].wake_at = Some(wake_at);
         self.schedule_next();
@@ -213,9 +213,7 @@ impl Scheduler {
         }
 
         x86_64::instructions::interrupts::disable();
-        let idx = self
-            .current
-            .expect("block_on_keyboard without current task");
+        let idx = self.running_task_index();
         self.keyboard_waiter = Some(idx);
         self.tasks[idx].state = TaskState::Blocked;
         self.tasks[idx].wake_at = None;
@@ -246,16 +244,26 @@ impl Scheduler {
 
     fn finish_current(&mut self) {
         x86_64::instructions::interrupts::disable();
-        if let Some(idx) = self.current {
-            let id = self.tasks[idx].id;
-            self.tasks[idx].state = TaskState::Finished;
-            if self.keyboard_waiter == Some(idx) {
-                self.keyboard_waiter = None;
-            }
-            let mut logger = Logger;
-            let _ = writeln!(logger, "[task] finished id={id}");
+        let idx = self.running_task_index();
+        let id = self.tasks[idx].id;
+        self.tasks[idx].state = TaskState::Finished;
+        if self.keyboard_waiter == Some(idx) {
+            self.keyboard_waiter = None;
         }
+        let mut logger = Logger;
+        let _ = writeln!(logger, "[task] finished id={id}");
         self.schedule_next();
+    }
+
+    fn set_running(&mut self, idx: usize) {
+        self.current = Some(idx);
+        preempt::set_active_task(idx);
+    }
+
+    fn running_task_index(&self) -> usize {
+        self.current
+            .or_else(preempt::active_task)
+            .expect("no running task")
     }
 
     fn schedule_next(&mut self) {
@@ -290,7 +298,7 @@ impl Scheduler {
 
         self.tasks[next_idx].state = TaskState::Running;
         self.tasks[next_idx].wait_ticks = 0;
-        self.current = Some(next_idx);
+        self.set_running(next_idx);
 
         let next_ctx = self.tasks[next_idx].context;
 
@@ -299,13 +307,16 @@ impl Scheduler {
                 panic!("schedule_next: prev task exists before scheduler started");
             }
             let prev_ctx = &mut self.tasks[prev].context;
+            core::sync::atomic::fence(core::sync::atomic::Ordering::SeqCst);
             unsafe {
                 switch_task(prev_ctx, &next_ctx);
             }
+            x86_64::instructions::interrupts::enable();
             return;
         }
 
         self.started = true;
+        core::sync::atomic::fence(core::sync::atomic::Ordering::SeqCst);
         unsafe {
             first_task_run(&next_ctx);
         }
@@ -336,10 +347,12 @@ impl Scheduler {
 
         self.tasks[next_idx].state = TaskState::Running;
         self.tasks[next_idx].wait_ticks = 0;
-        self.current = Some(next_idx);
+        self.set_running(next_idx);
 
         let next_ctx = self.tasks[next_idx].context;
         preempt::record_isr_preempt();
+
+        core::sync::atomic::fence(core::sync::atomic::Ordering::SeqCst);
 
         unsafe {
             switch_to(&next_ctx);
@@ -387,12 +400,13 @@ impl Scheduler {
         );
         self.schedule_next();
         loop {
+            x86_64::instructions::interrupts::enable();
             x86_64::instructions::hlt();
         }
     }
 
     fn current_entry(&self) -> fn() {
-        let idx = self.current.expect("trampoline without current task");
+        let idx = self.running_task_index();
         self.tasks[idx].entry
     }
 
@@ -494,6 +508,7 @@ extern "C" fn task_trampoline() -> ! {
     entry();
     scheduler().finish_current();
     loop {
+        x86_64::instructions::interrupts::enable();
         x86_64::instructions::hlt();
     }
 }

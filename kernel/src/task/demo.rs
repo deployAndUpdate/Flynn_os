@@ -1,4 +1,4 @@
-use core::sync::atomic::{AtomicU32, Ordering};
+use core::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 
 use crate::driver::serial::SerialPort;
 use crate::input::terminal;
@@ -8,11 +8,17 @@ use crate::task::{block_on_keyboard, sleep};
 const WORKER_ITERATIONS: u32 = 5;
 
 static WORKERS_FINISHED: AtomicU32 = AtomicU32::new(0);
+static SHELL_PROMPT_PENDING: AtomicBool = AtomicBool::new(false);
 
 fn on_worker_finished() {
     if WORKERS_FINISHED.fetch_add(1, Ordering::SeqCst) + 1 == 2 {
-        SerialPort::write_str_no_preempt("\n> ");
+        SHELL_PROMPT_PENDING.store(true, Ordering::Release);
     }
+}
+
+/// Returns `true` once when both demo workers have finished.
+pub fn take_shell_prompt_pending() -> bool {
+    SHELL_PROMPT_PENDING.swap(false, Ordering::AcqRel)
 }
 
 /// Burn CPU so timer quantum expires mid-work (ISR preempt test).
@@ -56,6 +62,9 @@ pub fn worker_b() {
 /// Blocks when no keyboard input — no busy-wait polling.
 pub fn input_loop() {
     loop {
+        if take_shell_prompt_pending() {
+            terminal::show_shell_prompt();
+        }
         if has_scancode() {
             terminal::process_keyboard_buffer();
         } else {
@@ -66,6 +75,7 @@ pub fn input_loop() {
 
 pub fn idle() {
     loop {
+        x86_64::instructions::interrupts::enable();
         x86_64::instructions::hlt();
     }
 }

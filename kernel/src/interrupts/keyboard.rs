@@ -33,6 +33,12 @@ pub fn pop_scancode() -> Option<u8> {
     queue.dequeue()
 }
 
+/// Drop any scancodes still in the IRQ queue (boot noise, key bounce before prompt).
+pub fn flush_scancode_queue() {
+    let queue = unsafe { &mut *KEY_QUEUE.0.get() };
+    while queue.dequeue().is_some() {}
+}
+
 fn wait_ps2_write() {
     let mut status = Port::<u8>::new(PS2_STATUS);
     for _ in 0..100_000 {
