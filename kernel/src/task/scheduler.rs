@@ -3,16 +3,15 @@ use alloc::vec::Vec;
 use core::cell::UnsafeCell;
 use core::fmt::Write;
 use lazy_static::lazy_static;
-use x86_64::structures::idt::InterruptStackFrame;
 
 use crate::driver::serial::SerialPort;
 use crate::interrupts::handler;
 use crate::interrupts::keyboard;
 use crate::logger::Logger;
 use crate::memory::stack::MappedStack;
-use crate::task::context::{allocate_stack, init_context, save_preempt_frame, TaskContext};
+use crate::task::context::{allocate_stack, init_context, TaskContext};
 use crate::task::preempt;
-use crate::task::switch::{first_task_run, switch_task, switch_to};
+use crate::task::switch::{first_task_run, switch_task};
 
 pub type TaskId = u64;
 
@@ -220,7 +219,6 @@ impl Scheduler {
         self.schedule_next();
     }
 
-    #[allow(dead_code)]
     fn yield_current(&mut self) {
         let current_idx = match self.current {
             Some(idx) => idx,
@@ -252,6 +250,7 @@ impl Scheduler {
         }
         let mut logger = Logger;
         let _ = writeln!(logger, "[task] finished id={id}");
+        crate::task::demo::try_show_shell_prompt();
         self.schedule_next();
     }
 
@@ -322,44 +321,18 @@ impl Scheduler {
         }
     }
 
-    fn preempt_from_interrupt(&mut self, frame: &InterruptStackFrame) {
-        let current_idx = match self.current {
-            Some(idx) => idx,
-            None => return,
-        };
-
+    fn preempt_if_pending(&mut self) {
+        if !preempt::take_pending() {
+            return;
+        }
         if self.active_count() <= 1 {
             return;
         }
-
-        let Some(next_idx) = self.pop_highest_ready() else {
-            return;
-        };
-
-        if next_idx == current_idx {
-            return;
-        }
-
-        self.enqueue_ready(current_idx);
-
-        let saved = save_preempt_frame(&self.tasks[current_idx].stack, frame);
-        self.tasks[current_idx].context = saved;
-
-        self.tasks[next_idx].state = TaskState::Running;
-        self.tasks[next_idx].wait_ticks = 0;
-        self.set_running(next_idx);
-
-        let next_ctx = self.tasks[next_idx].context;
-        preempt::record_isr_preempt();
-
-        core::sync::atomic::fence(core::sync::atomic::Ordering::SeqCst);
-
-        unsafe {
-            switch_to(&next_ctx);
-        }
+        preempt::record_timer_preempt();
+        self.yield_current();
     }
 
-    fn on_timer_tick(&mut self, now: u64, frame: &InterruptStackFrame) {
+    fn on_timer_tick(&mut self, now: u64) {
         self.wake_sleepers(now);
 
         if self.started && !preempt::is_disabled() {
@@ -373,7 +346,6 @@ impl Scheduler {
             return;
         }
 
-        // A woken sleeper may outrank the running task (e.g. worker vs idle).
         if let Some(current_idx) = self.current {
             if let Some(ready_idx) = self.peek_highest_ready() {
                 if ready_idx != current_idx
@@ -387,7 +359,7 @@ impl Scheduler {
         self.quantum = self.quantum.saturating_sub(1);
         if self.quantum == 0 {
             self.quantum = QUANTUM_TICKS;
-            self.preempt_from_interrupt(frame);
+            preempt::request_preempt();
         }
     }
 
@@ -395,7 +367,7 @@ impl Scheduler {
         let mut logger = Logger;
         let _ = writeln!(
             logger,
-            "[task] phase 2.1: ISR preempt (iretq), quantum={} ticks",
+            "[task] phase 2.1: timer preempt (safe points), quantum={} ticks",
             QUANTUM_TICKS
         );
         self.schedule_next();
@@ -490,9 +462,13 @@ pub fn notify_keyboard_input() {
     scheduler().wake_keyboard_waiter();
 }
 
-pub fn on_timer_tick(frame: InterruptStackFrame) {
+pub fn on_timer_tick() {
     let now = handler::ticks();
-    scheduler().on_timer_tick(now, &frame);
+    scheduler().on_timer_tick(now);
+}
+
+pub fn preempt_if_pending() {
+    scheduler().preempt_if_pending();
 }
 
 pub fn isr_preempt_count() -> u64 {

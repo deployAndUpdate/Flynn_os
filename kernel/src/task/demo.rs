@@ -3,27 +3,41 @@ use core::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use crate::driver::serial::SerialPort;
 use crate::input::terminal;
 use crate::interrupts::keyboard::has_scancode;
-use crate::task::{block_on_keyboard, sleep};
+use crate::task::{block_on_keyboard, isr_preempt_count, preempt_if_pending, sleep};
 
 const WORKER_ITERATIONS: u32 = 5;
 
 static WORKERS_FINISHED: AtomicU32 = AtomicU32::new(0);
-static SHELL_PROMPT_PENDING: AtomicBool = AtomicBool::new(false);
+static SHELL_PROMPT_SHOWN: AtomicBool = AtomicBool::new(false);
 
-fn on_worker_finished() {
-    if WORKERS_FINISHED.fetch_add(1, Ordering::SeqCst) + 1 == 2 {
-        SHELL_PROMPT_PENDING.store(true, Ordering::Release);
+pub fn note_worker_finished() {
+    WORKERS_FINISHED.fetch_add(1, Ordering::SeqCst);
+}
+
+/// Called from `finish_current` after the "[task] finished" line.
+pub fn try_show_shell_prompt() {
+    if WORKERS_FINISHED.load(Ordering::SeqCst) < 2 {
+        return;
     }
+    if SHELL_PROMPT_SHOWN.swap(true, Ordering::SeqCst) {
+        return;
+    }
+
+    terminal::show_shell_prompt();
+
+    let mut buf = [0u8; 48];
+    let prefix = b"[task] isr_preempts=";
+    buf[..prefix.len()].copy_from_slice(prefix);
+    let n = format_u64(isr_preempt_count(), &mut buf[prefix.len()..]);
+    let end = prefix.len() + n;
+    buf[end] = b'\n';
+    SerialPort::write_str_no_preempt(core::str::from_utf8(&buf[..=end]).unwrap());
 }
 
-/// Returns `true` once when both demo workers have finished.
-pub fn take_shell_prompt_pending() -> bool {
-    SHELL_PROMPT_PENDING.swap(false, Ordering::AcqRel)
-}
-
-/// Burn CPU so timer quantum expires mid-work (ISR preempt test).
+/// Burn CPU so timer quantum expires mid-work (preempt test).
 fn burn() {
     for _ in 0..2_000_000 {
+        preempt_if_pending();
         core::hint::spin_loop();
     }
 }
@@ -46,7 +60,7 @@ pub fn worker_a() {
         sleep(5);
     }
     SerialPort::write_str_no_preempt("A:done\n");
-    on_worker_finished();
+    note_worker_finished();
 }
 
 pub fn worker_b() {
@@ -56,15 +70,12 @@ pub fn worker_b() {
         sleep(5);
     }
     SerialPort::write_str_no_preempt("B:done\n");
-    on_worker_finished();
+    note_worker_finished();
 }
 
 /// Blocks when no keyboard input — no busy-wait polling.
 pub fn input_loop() {
     loop {
-        if take_shell_prompt_pending() {
-            terminal::show_shell_prompt();
-        }
         if has_scancode() {
             terminal::process_keyboard_buffer();
         } else {
@@ -76,6 +87,7 @@ pub fn input_loop() {
 pub fn idle() {
     loop {
         x86_64::instructions::interrupts::enable();
+        preempt_if_pending();
         x86_64::instructions::hlt();
     }
 }
@@ -87,6 +99,26 @@ fn format_u32(mut n: u32, out: &mut [u8]) -> usize {
     }
 
     let mut tmp = [0u8; 10];
+    let mut len = 0;
+    while n > 0 {
+        tmp[len] = b'0' + (n % 10) as u8;
+        len += 1;
+        n /= 10;
+    }
+
+    for i in 0..len {
+        out[i] = tmp[len - 1 - i];
+    }
+    len
+}
+
+fn format_u64(mut n: u64, out: &mut [u8]) -> usize {
+    if n == 0 {
+        out[0] = b'0';
+        return 1;
+    }
+
+    let mut tmp = [0u8; 20];
     let mut len = 0;
     while n > 0 {
         tmp[len] = b'0' + (n % 10) as u8;

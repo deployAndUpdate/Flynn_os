@@ -45,9 +45,14 @@ MARKERS=(
     "logger initialized"
     "frame self-test ok"
     "KERNEL STATUS : ONLINE"
+    "A:0"
+    "A:4"
+    "B:0"
+    "B:4"
     "A:done"
     "B:done"
     "> "
+    "[task] isr_preempts="
 )
 
 failed=0
@@ -63,6 +68,27 @@ done
 if grep -qF "PANIC:" "$LOG"; then
     echo "  FAIL: kernel panic detected"
     failed=1
+fi
+
+if grep -qF "PAGE FAULT" "$LOG"; then
+    echo "  FAIL: page fault detected"
+    failed=1
+fi
+
+# Stack corruption from the old bottom-frame copy showed garbage iteration counts.
+if grep -qE 'A:[0-9]{2,}|B:[0-9]{2,}' "$LOG"; then
+    echo "  FAIL: worker iteration count looks corrupted (expected 0..4 only)"
+    grep -E 'A:[0-9]{2,}|B:[0-9]{2,}' "$LOG" | head -3
+    failed=1
+fi
+
+# ISR preemption must have happened during burn().
+preempt_count="$(grep -oE 'isr_preempts=[0-9]+' "$LOG" | tail -1 | cut -d= -f2 || true)"
+if [[ -z "$preempt_count" || "$preempt_count" -lt 1 ]]; then
+    echo "  FAIL: isr_preempts missing or zero (got: ${preempt_count:-none})"
+    failed=1
+else
+    echo "  OK: isr_preempts=${preempt_count} (>0)"
 fi
 
 if [[ $failed -ne 0 ]]; then

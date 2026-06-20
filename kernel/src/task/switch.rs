@@ -38,7 +38,7 @@ global_asm!(
         iretq
     1:  voluntary_iretq
 
-    // void switch_to(TaskContext* next) — called from timer ISR; must iretq into task.
+    // void switch_to(TaskContext* next)
     switch_to:
         mov rax, [rdi]
         mov rsp, rax
@@ -47,7 +47,7 @@ global_asm!(
         iretq
     2:  voluntary_iretq
 
-    // void first_task_run(TaskContext* next) — bootstrap from kernel.
+    // void first_task_run(TaskContext* next)
     first_task_run:
         mov rax, [rdi]
         mov rsp, rax
