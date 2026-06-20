@@ -15,7 +15,7 @@ mod task;
 use alloc::vec::Vec;
 use bootloader_api::config::Mapping;
 use bootloader_api::info::{FrameBuffer, FrameBufferInfo, PixelFormat};
-use bootloader_api::{BootInfo, BootloaderConfig, entry_point};
+use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
 use core::fmt::Write;
 use core::panic::PanicInfo;
 use logger::Logger;
@@ -99,17 +99,17 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         .ok();
     }
 
-    let mut v = Vec::new();
-    v.push(1);
-    v.push(2);
-    writeln!(logger, "[heap] Vec works (len={}, sum={})", v.len(), v.iter().sum::<i32>()).ok();
-
-    interrupts::handler::init();
+    let v = Vec::from([1, 2]);
     writeln!(
         logger,
-        "[interrupts] timer + keyboard IRQ enabled"
+        "[heap] Vec works (len={}, sum={})",
+        v.len(),
+        v.iter().sum::<i32>()
     )
     .ok();
+
+    interrupts::handler::init();
+    writeln!(logger, "[interrupts] timer + keyboard IRQ enabled").ok();
 
     show_banner();
 

@@ -6,6 +6,7 @@ pub struct Frame {
 }
 
 impl Frame {
+    #[allow(dead_code)]
     pub fn containing_address(addr: usize) -> Self {
         Self {
             number: addr / PAGE_SIZE,

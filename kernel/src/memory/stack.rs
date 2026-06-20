@@ -11,10 +11,7 @@ pub struct MappedStack {
 
 impl MappedStack {
     pub fn allocate(slot: u64) -> Self {
-        assert!(
-            slot < KERNEL_STACK_SLOTS,
-            "kernel stack slot out of range"
-        );
+        assert!(slot < KERNEL_STACK_SLOTS, "kernel stack slot out of range");
 
         let virt = kernel_stack_virt(slot) as usize;
         paging::with_mapper_and_frames(|mapper, frames| {

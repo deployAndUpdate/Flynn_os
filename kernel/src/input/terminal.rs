@@ -1,5 +1,5 @@
-use alloc::string::String;
 use crate::alloc::string::ToString;
+use alloc::string::String;
 use spin::Mutex;
 
 use crate::driver::serial::SerialPort;

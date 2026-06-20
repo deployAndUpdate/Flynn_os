@@ -9,7 +9,7 @@ pub fn help() {
          ps to list tasks\n\
          sleep N to block for N timer ticks\n\
          clear to clear the screen\n\
-         help to print this help message\n"
+         help to print this help message\n",
     );
 }
 
