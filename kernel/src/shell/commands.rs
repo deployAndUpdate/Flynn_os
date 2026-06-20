@@ -25,6 +25,8 @@ pub fn preempts() {
 }
 
 pub fn mem() {
+    x86_64::instructions::interrupts::disable();
+
     match frame_allocator::stats() {
         Ok(frames) => {
             SerialPort::write_str_no_preempt("frames: total=");
@@ -38,14 +40,21 @@ pub fn mem() {
         Err(_) => SerialPort::write_str_no_preempt("frames: unavailable\n"),
     }
 
-    let heap = heap::stats();
+    let stats = heap::stats();
     SerialPort::write_str_no_preempt("heap:   used=");
-    print_u64(bytes_to_kib(heap.used) as u64);
-    SerialPort::write_str_no_preempt(" KiB free=");
-    print_u64(bytes_to_kib(heap.free) as u64);
-    SerialPort::write_str_no_preempt(" KiB total=");
-    print_u64(bytes_to_kib(heap.total) as u64);
-    SerialPort::write_str_no_preempt(" KiB\n");
+    print_u64(stats.used as u64);
+    SerialPort::write_str_no_preempt(" bytes free=");
+    print_u64(stats.free as u64);
+    SerialPort::write_str_no_preempt(" bytes total=");
+    print_u64(stats.total as u64);
+    SerialPort::write_str_no_preempt(" bytes");
+
+    if stats.used.saturating_add(stats.free) != stats.total {
+        SerialPort::write_str_no_preempt(" (stats inconsistent)");
+    }
+    SerialPort::write_str_no_preempt("\n");
+
+    x86_64::instructions::interrupts::enable();
 }
 
 pub fn say(text: &str) {
@@ -71,10 +80,6 @@ pub fn clear() {
     for _ in 0..50 {
         SerialPort::write_str_no_preempt("\n");
     }
-}
-
-fn bytes_to_kib(bytes: usize) -> usize {
-    bytes / 1024
 }
 
 fn print_u64(mut n: u64) {

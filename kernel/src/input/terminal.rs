@@ -1,4 +1,3 @@
-use crate::alloc::string::ToString;
 use alloc::string::String;
 use spin::Mutex;
 
@@ -9,6 +8,7 @@ use crate::task::PreemptGuard;
 
 const SC_BACKSPACE: u8 = 0x0E;
 const SC_ENTER: u8 = 0x1C;
+const CMD_MAX: usize = 128;
 
 static INPUT_LINE: Mutex<String> = Mutex::new(String::new());
 
@@ -47,17 +47,24 @@ fn push_char(ch: char) {
 }
 
 fn handle_enter() {
-    let command = {
+    let mut buf = [0u8; CMD_MAX];
+    let len = {
         let _guard = PreemptGuard::new();
         let mut line = INPUT_LINE.lock();
-        let cmd = line.trim().to_string();
+        let trimmed = line.trim();
+        let len = trimmed.len().min(CMD_MAX);
+        if len > 0 {
+            buf[..len].copy_from_slice(&trimmed.as_bytes()[..len]);
+        }
         line.clear();
-        cmd
+        len
     };
 
     SerialPort::write_str_no_preempt("\n");
-    if !command.is_empty() {
-        crate::shell::execute(&command);
+    if len > 0 {
+        if let Ok(command) = core::str::from_utf8(&buf[..len]) {
+            crate::shell::execute(command);
+        }
     }
     SerialPort::write_str_no_preempt("> ");
 }
