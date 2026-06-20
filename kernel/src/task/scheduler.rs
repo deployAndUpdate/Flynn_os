@@ -6,7 +6,6 @@ use lazy_static::lazy_static;
 
 use crate::driver::serial::SerialPort;
 use crate::interrupts::handler;
-use crate::interrupts::keyboard;
 use crate::logger::Logger;
 use crate::memory::stack::MappedStack;
 use crate::task::context::{allocate_stack, init_context, TaskContext};
@@ -49,7 +48,6 @@ struct Scheduler {
     tasks: Vec<Task>,
     ready: Vec<VecDeque<usize>>,
     current: Option<usize>,
-    keyboard_waiter: Option<usize>,
     next_id: TaskId,
     started: bool,
     quantum: u32,
@@ -65,7 +63,6 @@ impl Scheduler {
             tasks: Vec::new(),
             ready: (0..MAX_PRIORITY).map(|_| VecDeque::new()).collect(),
             current: None,
-            keyboard_waiter: None,
             next_id: 1,
             started: false,
             quantum: QUANTUM_TICKS,
@@ -88,9 +85,6 @@ impl Scheduler {
             return;
         }
         self.tasks[idx].wake_at = None;
-        if self.keyboard_waiter == Some(idx) {
-            self.keyboard_waiter = None;
-        }
         self.enqueue_ready(idx);
     }
 
@@ -104,12 +98,6 @@ impl Scheduler {
                     self.wake_task(idx);
                 }
             }
-        }
-    }
-
-    fn wake_keyboard_waiter(&mut self) {
-        if let Some(idx) = self.keyboard_waiter {
-            self.wake_task(idx);
         }
     }
 
@@ -206,19 +194,6 @@ impl Scheduler {
         self.schedule_next();
     }
 
-    fn block_current_keyboard(&mut self) {
-        if keyboard::has_scancode() {
-            return;
-        }
-
-        x86_64::instructions::interrupts::disable();
-        let idx = self.running_task_index();
-        self.keyboard_waiter = Some(idx);
-        self.tasks[idx].state = TaskState::Blocked;
-        self.tasks[idx].wake_at = None;
-        self.schedule_next();
-    }
-
     fn yield_current(&mut self) {
         let current_idx = match self.current {
             Some(idx) => idx,
@@ -245,9 +220,6 @@ impl Scheduler {
         let idx = self.running_task_index();
         let id = self.tasks[idx].id;
         self.tasks[idx].state = TaskState::Finished;
-        if self.keyboard_waiter == Some(idx) {
-            self.keyboard_waiter = None;
-        }
         let mut logger = Logger;
         let _ = writeln!(logger, "[task] finished id={id}");
         crate::task::demo::try_show_shell_prompt();
@@ -452,14 +424,6 @@ pub fn sleep(ticks: u32) {
     let now = handler::ticks();
     let wake_at = now + ticks as u64;
     scheduler().block_current_sleep(wake_at);
-}
-
-pub fn block_on_keyboard() {
-    scheduler().block_current_keyboard();
-}
-
-pub fn notify_keyboard_input() {
-    scheduler().wake_keyboard_waiter();
 }
 
 pub fn on_timer_tick() {

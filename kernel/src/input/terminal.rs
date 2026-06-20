@@ -50,6 +50,28 @@ pub fn process_keyboard_buffer() -> bool {
     processed
 }
 
+/// Drain bytes from COM1 (QEMU `-serial stdio`). Returns `true` if any byte was handled.
+pub fn process_serial_buffer() -> bool {
+    let mut processed = false;
+    while let Some(byte) = SerialPort::try_read_byte() {
+        processed = true;
+        handle_serial_byte(byte);
+    }
+    processed
+}
+
+fn handle_serial_byte(byte: u8) {
+    match byte {
+        b'\r' | b'\n' => handle_enter(),
+        0x08 | 0x7f => handle_backspace(),
+        0x03 => {} // Ctrl+C — ignore (host may send it; do not act on it)
+        b if b.is_ascii() && (b.is_ascii_graphic() || b == b' ') => {
+            push_char(b as char);
+        }
+        _ => {}
+    }
+}
+
 fn push_char(ch: char) {
     {
         let _guard = PreemptGuard::new();

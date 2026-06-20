@@ -39,7 +39,7 @@
 ```
 kernel/src/task/
 ├── context.rs     — TaskContext, save_preempt_frame
-├── switch.rs      — switch_task, switch_to, first_task_run (asm)
+├── switch.rs      — switch_task, first_task_run (asm)
 ├── preempt.rs     — PreemptGuard, isr_preempt_count
 ├── scheduler.rs   — preempt_from_interrupt
 └── demo.rs

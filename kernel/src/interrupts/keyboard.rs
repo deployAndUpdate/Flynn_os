@@ -59,7 +59,6 @@ pub fn init_keyboard() {
 pub extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStackFrame) {
     let mut status_port = Port::<u8>::new(PS2_STATUS);
     let mut data_port = Port::<u8>::new(PS2_DATA);
-    let mut received = false;
 
     loop {
         let status = unsafe { status_port.read() };
@@ -68,15 +67,10 @@ pub extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: Interrupt
         }
         let scancode = unsafe { data_port.read() };
         unsafe { enqueue_scancode(scancode) };
-        received = true;
     }
 
     unsafe {
         PICS.lock()
             .notify_end_of_interrupt(InterruptIndex::Keyboard as u8);
-    }
-
-    if received {
-        crate::task::notify_keyboard_input();
     }
 }

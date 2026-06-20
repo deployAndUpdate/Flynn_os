@@ -27,6 +27,11 @@ fn main() -> ExitCode {
     let mut cmd = Command::new("qemu-system-x86_64");
     cmd.arg("-m").arg("512M");
     cmd.arg("-serial").arg("stdio");
+    cmd.arg("-display").arg("none");
+    cmd.arg("-no-reboot");
+
+    eprintln!("Flynn OS: type shell commands in this terminal (serial console).");
+    eprintln!("Quit QEMU with Ctrl+C in this terminal.");
 
     match mode {
         BootMode::Bios => {
@@ -79,8 +84,10 @@ fn print_help(prog: &str) {
     eprintln!("  target/flynn_os/bios.img");
     eprintln!("  target/flynn_os/uefi.img");
     eprintln!();
-    eprintln!("Manual QEMU (BIOS):");
-    eprintln!("  qemu-system-x86_64 -m 512M -drive format=raw,file=target/flynn_os/bios.img");
+    eprintln!("Manual QEMU (BIOS, shell in this terminal):");
+    eprintln!(
+        "  qemu-system-x86_64 -m 512M -serial stdio -display none -no-reboot -drive format=raw,file=target/flynn_os/bios.img"
+    );
     eprintln!();
     eprintln!("UEFI firmware paths (override with env vars):");
     eprintln!("  FLYNN_OVMF_CODE  (default: /usr/share/OVMF/OVMF_CODE.fd)");

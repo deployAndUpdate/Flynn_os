@@ -5,7 +5,6 @@ use super::context::TaskContext;
 global_asm!(
     r#"
     .global switch_task
-    .global switch_to
     .global first_task_run
 
     // Voluntary slot: [rsp] = return address → synthetic iretq frame (IF=1 atomically).
@@ -38,28 +37,18 @@ global_asm!(
         iretq
     1:  voluntary_iretq
 
-    // void switch_to(TaskContext* next)
-    switch_to:
+    // void first_task_run(TaskContext* next)
+    first_task_run:
         mov rax, [rdi]
         mov rsp, rax
         cmp byte ptr [rdi + 8], 0
         je 2f
         iretq
     2:  voluntary_iretq
-
-    // void first_task_run(TaskContext* next)
-    first_task_run:
-        mov rax, [rdi]
-        mov rsp, rax
-        cmp byte ptr [rdi + 8], 0
-        je 3f
-        iretq
-    3:  voluntary_iretq
     "#
 );
 
 extern "C" {
     pub fn switch_task(current: *mut TaskContext, next: *const TaskContext);
-    pub fn switch_to(next: *const TaskContext);
     pub fn first_task_run(next: *const TaskContext);
 }

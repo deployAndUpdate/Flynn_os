@@ -3,7 +3,7 @@ use core::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use crate::driver::serial::SerialPort;
 use crate::input::terminal;
 use crate::interrupts::keyboard::has_scancode;
-use crate::task::{block_on_keyboard, isr_preempt_count, preempt_if_pending, sleep};
+use crate::task::{isr_preempt_count, preempt_if_pending, sleep};
 
 const WORKER_ITERATIONS: u32 = 5;
 
@@ -73,13 +73,19 @@ pub fn worker_b() {
     note_worker_finished();
 }
 
-/// Blocks when no keyboard input — no busy-wait polling.
+/// Shell input: PS/2 keyboard (QEMU window) and/or COM1 (`-serial stdio`).
 pub fn input_loop() {
     loop {
-        if has_scancode() {
+        let mut work = false;
+        while has_scancode() {
             terminal::process_keyboard_buffer();
-        } else {
-            block_on_keyboard();
+            work = true;
+        }
+        while terminal::process_serial_buffer() {
+            work = true;
+        }
+        if !work {
+            sleep(1);
         }
     }
 }
