@@ -1,9 +1,10 @@
 use crate::driver::serial::SerialPort;
 use crate::interrupts::handler;
+use crate::memory::{frame_allocator, heap};
 
 pub fn help() {
     SerialPort::write_str(
-        "mem to print the memory map\n\
+        "mem to print frame and heap usage\n\
          ticks to print the number of ticks\n\
          ps to list tasks\n\
          sleep N to block for N timer ticks\n\
@@ -17,7 +18,27 @@ pub fn ps() {
 }
 
 pub fn mem() {
-    SerialPort::write_str("heap initialized\n");
+    match frame_allocator::stats() {
+        Ok(frames) => {
+            SerialPort::write_str("frames: total=");
+            print_u64(frames.total as u64);
+            SerialPort::write_str(" used=");
+            print_u64(frames.used as u64);
+            SerialPort::write_str(" free=");
+            print_u64(frames.free as u64);
+            SerialPort::write_str("\n");
+        }
+        Err(_) => SerialPort::write_str("frames: unavailable\n"),
+    }
+
+    let heap = heap::stats();
+    SerialPort::write_str("heap:   used=");
+    print_u64(bytes_to_kib(heap.used) as u64);
+    SerialPort::write_str(" KiB free=");
+    print_u64(bytes_to_kib(heap.free) as u64);
+    SerialPort::write_str(" KiB total=");
+    print_u64(bytes_to_kib(heap.total) as u64);
+    SerialPort::write_str(" KiB\n");
 }
 
 pub fn say(text: &str) {
@@ -43,6 +64,10 @@ pub fn clear() {
     for _ in 0..50 {
         SerialPort::write_str("\n");
     }
+}
+
+fn bytes_to_kib(bytes: usize) -> usize {
+    bytes / 1024
 }
 
 fn print_u64(mut n: u64) {

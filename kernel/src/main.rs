@@ -22,8 +22,10 @@ use logger::Logger;
 use x86_64::structures::paging::FrameAllocator;
 use x86_64::VirtAddr;
 
-const HEAP_START: usize = 0x4444_4444_0000;
-const HEAP_SIZE: usize = 1024 * 1024;
+use memory::layout::{KERNEL_HEAP_SIZE, KERNEL_HEAP_START};
+
+const HEAP_START: usize = KERNEL_HEAP_START;
+const HEAP_SIZE: usize = KERNEL_HEAP_SIZE;
 
 pub static BOOTLOADER_CONFIG: BootloaderConfig = {
     let mut config = BootloaderConfig::new_default();
@@ -40,12 +42,14 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     writeln!(logger, "[boot] memory map received").ok();
     memory::memory_map::print_memory_map(&boot_info.memory_regions);
 
+    writeln!(logger, "[mem] initializing frame allocator").ok();
     let mut frame_allocator = memory::frame_allocator::init_frame_allocator(boot_info);
+    writeln!(logger, "[mem] frame allocator ready").ok();
     match frame_allocator.allocate_frame() {
         Some(frame) => {
             writeln!(
                 logger,
-                "[mem] allocated frame at {:#018x}",
+                "[mem] probe frame at {:#018x}",
                 frame.start_address().as_u64()
             )
             .ok();
@@ -61,6 +65,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
             .into_option()
             .expect("bootloader must map physical memory"),
     );
+    memory::paging::init_phys_mem_offset(phys_mem_offset);
     let mut mapper = unsafe { memory::paging::active_page_table(phys_mem_offset) };
     writeln!(
         logger,
@@ -75,6 +80,24 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         "[heap] initialized at {HEAP_START:#018x} ({HEAP_SIZE} bytes)"
     )
     .ok();
+
+    match memory::frame_allocator::self_test(64) {
+        Ok(n) => {
+            writeln!(logger, "[mem] frame self-test ok ({n} alloc/free cycles)").ok();
+        }
+        Err(e) => {
+            writeln!(logger, "[mem] frame self-test FAILED: {e:?}").ok();
+        }
+    }
+
+    if let Ok(stats) = memory::frame_allocator::stats() {
+        writeln!(
+            logger,
+            "[mem] frames: total={} used={} free={}",
+            stats.total, stats.used, stats.free
+        )
+        .ok();
+    }
 
     let mut v = Vec::new();
     v.push(1);
@@ -103,7 +126,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         writeln!(logger, "No framebuffer").ok();
     }
 
-    writeln!(logger, "[task] phase 4: block/wake + sleep").ok();
+    writeln!(logger, "[task] phase 0: frame bitmap + mapped stacks").ok();
 
     task::spawn(task::demo::worker_a, 1);
     task::spawn(task::demo::worker_b, 1);
