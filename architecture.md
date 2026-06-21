@@ -8,12 +8,11 @@
 - Shell + line input
 - **Phase 1** — cooperative kernel threads, lock-free KEY_BUFFER
 - **Phase 2** — preemptive timer, idle task, `PreemptGuard`, `ticks`
-- **Phase 2.1 — True ISR context switch**
-  - `TaskContext`: `rsp` + `preempted` flag
-  - `switch_task` / `switch_to` / `first_task_run` — `ret` или `iretq`
-  - Timer ISR → `preempt_from_interrupt()` — сохранение `InterruptStackFrame`, переключение без safe point
-  - Shell: `preempts` — счётчик ISR-preempt
-  - Workers: `burn()` для теста вытеснения по quantum
+- **Phase 2.1 — Timer preempt at safe points**
+  - Timer ISR sets `PREEMPT_PENDING`; switch runs in task context (`burn`, `idle`)
+  - Voluntary `switch_task` + synthetic `iretq` (IF=1)
+  - Shell: `preempts` — timer-driven preemption count
+  - True ISR `iretq` switch deferred (needs full GPR save)
 - **Phase 3** — priority queue (4 levels) + aging, `ps`, boot dispatch
 - **Phase 4** — block / wake (`sleep`, `block_on_keyboard`)
 - **Phase 0** — bitmap frame allocator, `deallocate_frame`, shell `mem`, mapped stacks
@@ -40,7 +39,7 @@
 ```
 kernel/src/task/
 ├── context.rs     — TaskContext, save_preempt_frame
-├── switch.rs      — switch_task, switch_to, first_task_run (asm)
+├── switch.rs      — switch_task, first_task_run (asm)
 ├── preempt.rs     — PreemptGuard, isr_preempt_count
 ├── scheduler.rs   — preempt_from_interrupt
 └── demo.rs

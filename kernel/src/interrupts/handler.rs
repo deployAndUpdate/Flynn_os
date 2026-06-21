@@ -6,7 +6,7 @@ use crate::interrupts::pit;
 
 static mut TICKS: u64 = 0;
 
-pub extern "x86-interrupt" fn timer_interrupt_handler(stack_frame: InterruptStackFrame) {
+pub extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
     unsafe {
         TICKS += 1;
     }
@@ -16,7 +16,7 @@ pub extern "x86-interrupt" fn timer_interrupt_handler(stack_frame: InterruptStac
             .notify_end_of_interrupt(InterruptIndex::Timer as u8);
     }
 
-    crate::task::on_timer_tick(stack_frame);
+    crate::task::on_timer_tick();
 }
 
 pub fn init() {

@@ -3,6 +3,8 @@ use x86_64::instructions::port::Port;
 use crate::task::PreemptGuard;
 
 const COM1: u16 = 0x3F8;
+const COM1_LSR: u16 = COM1 + 5;
+const LSR_DATA_READY: u8 = 0x01;
 
 pub struct SerialPort;
 
@@ -30,6 +32,17 @@ impl SerialPort {
             let mut port = Port::<u8>::new(COM1 + 4);
             port.write(0x0B); // IRQs enabled, RTS/DSR set
         }
+    }
+
+    pub fn has_byte() -> bool {
+        unsafe { Port::<u8>::new(COM1_LSR).read() & LSR_DATA_READY != 0 }
+    }
+
+    pub fn try_read_byte() -> Option<u8> {
+        if !Self::has_byte() {
+            return None;
+        }
+        unsafe { Some(Port::<u8>::new(COM1).read()) }
     }
 
     fn send(byte: u8) {

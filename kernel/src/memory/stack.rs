@@ -30,10 +30,6 @@ impl MappedStack {
         }
     }
 
-    pub fn bottom(&self) -> usize {
-        self.virt_base
-    }
-
     pub fn as_mut_bytes(&mut self) -> &mut [u8] {
         unsafe { core::slice::from_raw_parts_mut(self.virt_base as *mut u8, self.len) }
     }

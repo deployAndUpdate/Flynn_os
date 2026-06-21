@@ -35,3 +35,6 @@ jobs:
 
       - name: QEMU smoke test
         run: ./scripts/smoke_test.sh
+
+      - name: Preempt stability (10 runs)
+        run: PREEMPT_STABILITY_RUNS=10 ./scripts/preempt_stability_test.sh
